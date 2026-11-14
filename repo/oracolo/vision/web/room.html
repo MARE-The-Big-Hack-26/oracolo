@@ -1,64 +1,304 @@
 <!doctype html><html lang="it"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Oracolo – editor 3D planimetria</title><style>
-*{box-sizing:border-box}html,body{margin:0;height:100%;background:#0f1115;color:#e8eaed;font-family:-apple-system,Helvetica,Arial,sans-serif;overflow:hidden}
-header{padding:10px 14px;background:#1b2330;display:flex;gap:8px;align-items:center;flex-wrap:wrap;border-bottom:1px solid #263042}
-header b{font-size:16px;margin-right:4px}
-button,input{font-size:13px;padding:6px 10px;border-radius:8px;border:1px solid #3a4152;background:#232a38;color:#e8eaed}
-button{cursor:pointer}button:hover{border-color:#60a5fa}button.pri{background:#2563eb;border-color:#2563eb;font-weight:600}
-button.dan{background:#7f1d1d;border-color:#991b1b}
-header a{color:#8ab4f8;font-size:13px;margin-left:6px;text-decoration:none}
-label{font-size:13px;display:inline-flex;align-items:center;gap:5px}
-#msg{padding:5px 14px;font-size:12.5px;min-height:24px;color:#93c5fd;background:#131720;border-bottom:1px solid #202634}
-#wrap{display:flex;gap:10px;padding:10px;height:calc(100% - 82px);min-height:0}
-#side{width:330px;background:#171a21;border-radius:10px;padding:10px;display:flex;flex-direction:column;gap:10px;overflow:auto}
-#view{flex:1;background:#0d1016;border-radius:10px;position:relative;overflow:hidden;min-height:0}
+<title>Oracolo - Editor Planimetria 3D</title><style>
+*{box-sizing:border-box}
+::selection{background:#1d4ed8;color:#fff}
+html,body{margin:0;height:100%;background:#0b0e14;color:#f1f5f9;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;font-variant-numeric:tabular-nums;-webkit-font-smoothing:antialiased;overflow:hidden}
+button:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible{outline:2px solid #38bdf8;outline-offset:2px}
+::-webkit-scrollbar{width:6px;height:6px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:#334155;border-radius:99px}
+header{padding:8px 14px;background:#121824;display:flex;gap:10px;align-items:center;flex-wrap:wrap;border-bottom:1px solid #242e42}
+.brand{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;padding:4px 8px;border-radius:5px;background:#1e293b;color:#e2e8f0;border:1px solid #334155}
+header h1{margin:0 4px 0 0;font-size:15px;font-weight:650;color:#fff}
+.grp{display:inline-flex;align-items:center;gap:6px;padding-right:10px;border-right:1px solid #242e42}
+.seg{display:inline-flex;background:#0e131d;border:1px solid #2b3548;border-radius:7px;padding:2px;gap:2px}
+.seg button{border:none;background:transparent;color:#94a3b8;padding:4px 10px;font-size:12px;border-radius:5px}
+.seg button:hover{color:#f8fafc;background:#1e2636}
+.seg button.active{background:#1d4ed8;color:#fff}
+.nav{margin-left:auto;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+button,input,select{font-size:13px;padding:6px 10px;border-radius:6px;border:1px solid #334155;background:#1e2636;color:#f8fafc;font-family:inherit;font-variant-numeric:tabular-nums}
+button{cursor:pointer;font-weight:600;display:inline-flex;align-items:center;justify-content:center;gap:6px;transition:background .14s,border-color .14s,color .14s;white-space:nowrap}
+button:hover:not(:disabled){border-color:#60a5fa;background:#263147}
+button.pri{background:#1d4ed8;border-color:#3b82f6;color:#fff;font-weight:700}
+button.pri:hover:not(:disabled){background:#1e40af;border-color:#60a5fa}
+button.act{background:#92400e;border-color:#f59e0b;color:#fff;font-weight:700}
+button.act:hover:not(:disabled){background:#b45309}
+button.dan{background:#991b1b;border-color:#ef4444;color:#fff;font-weight:700}
+button.dan:hover:not(:disabled){background:#b91c1c}
+button:disabled{opacity:.42;cursor:not-allowed}
+button.ok{background:#15803d!important;border-color:#22c55e!important;color:#fff!important;font-weight:700}
+kbd{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px;font-weight:600;padding:1px 5px;border-radius:4px;background:rgba(15,23,42,.75);border:1px solid rgba(148,163,184,.35);color:#e2e8f0;line-height:1.3}
+button.pri kbd{background:rgba(15,23,42,.45);border-color:rgba(255,255,255,.35);color:#fff}
+header a{color:#e2e8f0;font-size:13px;font-weight:600;text-decoration:none;padding:5px 10px;border-radius:6px;background:#1e2636;border:1px solid #334155;transition:background .14s,border-color .14s}
+header a:hover{border-color:#60a5fa;background:#263147;color:#fff}
+#msg{padding:5px 14px;font-size:13px;min-height:28px;color:#93c5fd;background:#0e131d;border-bottom:1px solid #1e2636;display:flex;align-items:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#msg.ok{color:#4ade80;font-weight:600}
+#msg.err{color:#f87171;font-weight:600}
+#toast{position:fixed;top:52px;right:16px;background:#15803d;color:#fff;border:1px solid #86efac;padding:8px 14px;border-radius:8px;font-weight:700;font-size:13px;z-index:99;opacity:0;transform:translateY(-8px);pointer-events:none;transition:opacity .18s,transform .18s}
+#toast.show{opacity:1;transform:translateY(0)}
+#toast.err{background:#991b1b;border-color:#fca5a5}
+#wrap{display:flex;gap:10px;padding:10px;height:calc(100% - 77px);min-height:0}
+#side{width:360px;flex-shrink:0;background:#121722;border:1px solid #242c3d;border-radius:8px;display:flex;flex-direction:column;overflow:hidden}
+.tabs{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;padding:8px;background:#0e131d;border-bottom:1px solid #242c3d}
+.tab{background:transparent;border:1px solid transparent;color:#cbd5e1;padding:7px 6px;font-size:13px;font-weight:600;border-radius:6px}
+.tab:hover{color:#fff;background:#171d2b;border-color:#283246}
+.tab.active{background:#1a253a;color:#fff;border-color:#3b82f6}
+.pill{font-size:12px;font-weight:700;padding:1px 7px;border-radius:99px;background:#242e42;color:#e2e8f0}
+.tab.active .pill{background:#1d4ed8;color:#fff}
+#tabBody{flex:1;overflow-y:auto;padding:10px;display:flex;flex-direction:column;gap:10px}
+.pane{display:none;flex-direction:column;gap:10px}
+.pane.active{display:flex}
+#view{flex:1;background:#090c12;border:1px solid #242c3d;border-radius:8px;position:relative;overflow:hidden;min-height:0}
 #view canvas{display:block;width:100%;height:100%}
-#hint{position:absolute;left:12px;bottom:10px;font-size:12px;background:rgba(15,17,21,.82);padding:6px 10px;border-radius:8px;pointer-events:none;color:#cbd5e1;border:1px solid #2b3446}
-.card{background:#1e232e;border:1px solid #2d3546;border-radius:8px;padding:10px;display:flex;flex-direction:column;gap:8px}
-.card h3{margin:0;font-size:13.5px;color:#cbd5e1}
-.dim{display:flex;flex-direction:column;gap:4px;font-size:12px;color:#94a3b8}
-.dimrow{display:flex;align-items:center;gap:8px}.dimrow input[type=range]{flex:1;padding:0;accent-color:#3b82f6}.dimrow input[type=number]{width:70px}
+#vleg{position:absolute;top:12px;left:12px;display:flex;flex-wrap:wrap;gap:10px;background:rgba(11,14,20,.88);padding:6px 11px;border-radius:7px;border:1px solid #242e42;font-size:12px;color:#e2e8f0;pointer-events:none}
+#vleg span{display:inline-flex;align-items:center;gap:5px}
+.dot{width:10px;height:10px;border-radius:3px;display:inline-block;flex-shrink:0}
+#hint{position:absolute;left:12px;bottom:10px;font-size:12px;background:rgba(11,14,20,.9);padding:6px 11px;border-radius:7px;pointer-events:none;color:#cbd5e1;border:1px solid #2b3548;display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.card{background:#171d2b;border:1px solid #283246;border-radius:7px;padding:11px;display:flex;flex-direction:column;gap:9px}
+.card h2{margin:0;font-size:13px;font-weight:650;color:#f8fafc;display:flex;justify-content:space-between;align-items:center;gap:8px}
+.subcopy{font-size:12px;color:#cbd5e1;line-height:1.45}
+.guides{display:flex;flex-direction:column;gap:5px;padding:8px 9px;background:#111621;border:1px solid #242c3d;border-radius:6px;font-size:12px;color:#cbd5e1}
+.guides span{display:flex;align-items:center;gap:7px}
+.dim{display:flex;flex-direction:column;gap:4px;font-size:12px;color:#cbd5e1;font-weight:500}
+.dimrow{display:flex;align-items:center;gap:8px}
+.dimrow input[type=range]{flex:1;padding:0;accent-color:#3b82f6;cursor:pointer}
+.dimrow input[type=number]{width:70px;text-align:right}
 .grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-.fld{display:flex;flex-direction:column;gap:3px;font-size:12px;color:#94a3b8}.fld input{width:100%}
-.row{display:flex;gap:8px}.row button{flex:1}#olist{display:flex;flex-direction:column;gap:5px}
-.item{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:6px 9px;border-radius:7px;background:#151922;border:1px solid #283042;cursor:pointer;font-size:12.5px}
-.item.sel{border-color:#3b82f6;background:#1b263b}.item small{display:block;font-size:11px;opacity:.7}
-.item button{padding:2px 7px;font-size:12px;background:#3a1d24;border-color:#7f1d1d}
+.fld{display:flex;flex-direction:column;gap:4px;font-size:12px;color:#cbd5e1;font-weight:500}
+.fld input{width:100%}
+.row{display:flex;gap:6px}
+.row button{flex:1}
+.sep{height:1px;background:#242c3d;margin:2px 0}
+.sec-lbl{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#94a3b8}
+#olist{display:flex;flex-direction:column;gap:5px}
+#olist:empty::after{content:"Nessun oggetto nella stanza. Premi + Aggiungi cubo per iniziare.";font-size:12px;color:#94a3b8;padding:8px 4px;text-align:center}
+.item{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:7px 10px;border-radius:6px;background:#111621;border:1px solid #263042;cursor:pointer;font-size:13px;color:#f1f5f9;transition:border-color .12s,background .12s}
+.item:hover{border-color:#475569;background:#151c2a}
+.item.sel{border-color:#3b82f6;background:#1a253a}
+.item small{display:block;font-size:12px;color:#94a3b8;margin-top:1px}
+.item button{padding:4px 8px;font-size:12px;background:#991b1b;border-color:#ef4444;color:#fff}
+@media (max-width:900px){html,body{overflow:auto}#wrap{flex-direction:column;height:auto}#side{width:100%;max-height:52vh}#view{height:55vh;min-height:360px}}
 </style>
 <script type="importmap">
 {"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"}}
 </script></head><body>
-<header><b>Planimetria 3D</b>
-  <label>Largh. stanza X (m) <input id="rw" type="number" step="0.1" min="0.5" value="5.0" style="width:68px"></label>
-  <label>Lungh. stanza Y (m) <input id="rd" type="number" step="0.1" min="0.5" value="4.0" style="width:68px"></label>
-  <button id="v3d" type="button">Vista 3D</button>
-  <button id="vTop" type="button">Pianta 2D</button>
-  <button id="clearobs" type="button">Svuota</button>
-  <button id="save" class="pri" type="button">Salva planimetria</button>
-  <a href="/">← Pannello</a><a href="/calibrate">Calibra camera →</a>
+<header>
+  <span class="brand">ORACOLO // CAD 3D</span>
+  <h1>Editor Planimetria</h1>
+  <div class="grp"><div class="seg" role="group" aria-label="Modalità vista"><button id="v3d" class="active" type="button">Vista 3D</button><button id="vTop" type="button">Pianta 2D</button><button id="vCam" type="button">Vista iPhone <kbd>0</kbd></button></div></div>
+  <div class="grp"><button id="undoRoom" type="button" disabled>Annulla <kbd>Ctrl+Z</kbd></button><button id="clearobs" type="button">Svuota</button><button id="save" class="pri" type="button">Salva planimetria</button></div>
+  <div class="nav"><a href="/calibrate">Calibra camera</a><a href="/">Pannello Live</a></div>
 </header>
-<div id="msg">Caricamento scena 3D…</div>
+<div id="msg" role="status" aria-live="polite">Caricamento scena 3D...</div><div id="toast"></div>
 <div id="wrap">
   <aside id="side">
-    <button id="addobs" class="pri" type="button" style="padding:10px;font-size:14px">+ Aggiungi ostacolo</button>
-    <div class="card"><h3>Dimensioni oggetto selezionato</h3>
-      <div id="none" style="font-size:12.5px;opacity:.75">Clicca un blocco nella stanza per spostarlo o usa le maniglie sui lati/tetto per ridimensionarlo.</div>
-      <div id="form" style="display:none">
-        <div class="fld">Nome<input id="fn" type="text" placeholder="Nome ostacolo (opzionale)"></div>
-        <div class="dim" style="margin-top:8px">Larghezza X (m)<div class="dimrow"><input id="sw" type="range" min="0.1" max="5" step="0.05"><input id="fw" type="number" step="0.05" min="0.1"></div></div>
-        <div class="dim" style="margin-top:6px">Lunghezza Y (m)<div class="dimrow"><input id="sd" type="range" min="0.1" max="5" step="0.05"><input id="fd" type="number" step="0.05" min="0.1"></div></div>
-        <div class="dim" style="margin-top:6px">Altezza Z (m)<div class="dimrow"><input id="sh" type="range" min="0.1" max="3.5" step="0.05"><input id="fh" type="number" step="0.05" min="0.1"></div></div>
-        <div class="grid" style="margin-top:8px">
-          <div class="fld">Posizione X (m)<input id="fx" type="number" step="0.05"></div>
-          <div class="fld">Posizione Y (m)<input id="fy" type="number" step="0.05"></div>
+    <nav class="tabs" role="tablist" aria-label="Sezioni editor">
+      <button class="tab active" type="button" role="tab" aria-selected="true" data-tab="obs">Oggetti <span class="pill" id="cnt">0</span></button>
+      <button class="tab" type="button" role="tab" aria-selected="false" data-tab="cam">iPhone</button>
+      <button class="tab" type="button" role="tab" aria-selected="false" data-tab="room">Stanza <span class="pill" id="rvCnt">4</span></button>
+    </nav>
+    <div id="tabBody">
+      <section class="pane active" data-pane="obs">
+        <div class="row"><button id="addCube" class="pri" type="button">+ Aggiungi cubo <kbd>Shift+A</kbd></button><button id="dupCube" type="button" disabled>Duplica <kbd>Shift+D</kbd></button></div>
+        <div class="card"><h2>Oggetto Selezionato</h2>
+          <div id="none">
+            <div class="subcopy" style="margin-bottom:8px">Clicca un blocco nella scena o aggiungine uno nuovo per modificarne misure, forma e altezza.</div>
+            <div class="guides"><span><i class="dot" style="background:#c084fc"></i>Marcatori viola: sposta una faccia</span><span><i class="dot" style="background:#38bdf8"></i>Marcatori azzurri: sposta un angolo</span><span><i class="dot" style="background:#34d399"></i>Marcatore verde: regola l'altezza Z</span></div>
+          </div>
+          <div id="form" style="display:none">
+            <div class="fld">Nome ostacolo<input id="fn" type="text" placeholder="es. pianoforte, scaffale, tavolo"></div>
+            <div class="sec-lbl" style="margin-top:10px">Dimensioni (m)</div>
+            <div class="dim" style="margin-top:5px">Larghezza X<div class="dimrow"><input id="sw" type="range" min="0.1" max="5" step="0.05"><input id="fw" type="number" step="0.05" min="0.1"></div></div>
+            <div class="dim" style="margin-top:5px">Profondità Y<div class="dimrow"><input id="sd" type="range" min="0.1" max="5" step="0.05"><input id="fd" type="number" step="0.05" min="0.1"></div></div>
+            <div class="dim" style="margin-top:5px">Altezza Z<div class="dimrow"><input id="sh" type="range" min="0.1" max="3.5" step="0.05"><input id="fh" type="number" step="0.05" min="0.1"></div></div>
+            <div class="grid" style="margin-top:8px"><div class="fld">Posizione X (m)<input id="fx" type="number" step="0.05"></div><div class="fld">Posizione Y (m)<input id="fy" type="number" step="0.05"></div></div>
+            <div class="sep" style="margin-top:10px"></div>
+            <div class="sec-lbl" style="margin-top:6px">Modellazione 2.5D</div>
+            <div class="row" style="margin-top:6px"><button id="subdivEdge" type="button">Suddividi faccia <kbd>K</kbd></button><button id="extrudeEdge" class="act" type="button">Estrudi <kbd>E</kbd></button></div>
+            <div class="row" style="margin-top:6px"><button id="rot15" type="button">Ruota 15° <kbd>R</kbd></button><button id="rot" type="button">Ruota 90°</button></div>
+            <div class="row" style="margin-top:6px"><button id="delVtx" type="button">Dissolvi vertice</button><button id="del" class="dan" type="button">Elimina <kbd>X</kbd></button></div>
+          </div>
         </div>
-        <div class="row" style="margin-top:10px"><button id="rot" type="button">Ruota 90°</button><button id="del" class="dan" type="button">Elimina</button></div>
-      </div>
+        <div class="card"><h2>Oggetti nella Stanza</h2><div id="olist"></div></div>
+      </section>
+      <section class="pane" data-pane="cam">
+        <div class="card"><h2>Posizione e Orientamento iPhone</h2>
+          <div class="grid"><div class="fld">Camera X (m)<input id="cx" type="number" step="0.05" value="4.5"></div><div class="fld">Camera Y (m)<input id="cy" type="number" step="0.05" value="1.1"></div></div>
+          <div class="dim">Altezza camera Z (m)<div class="dimrow"><input id="sch" type="range" min="0.3" max="3.5" step="0.05" value="1.8"><input id="ch" type="number" step="0.05" min="0.2" value="1.8"></div></div>
+          <div class="dim">Direzione vista (°)<div class="dimrow"><input id="scdir" type="range" min="-180" max="180" step="1" value="165"><input id="cdir" type="number" step="1" min="-180" max="180" value="165"></div></div>
+          <div class="dim">Inclinazione pitch (°)<div class="dimrow"><input id="scpitch" type="range" min="-85" max="25" step="1" value="-28"><input id="cpitch" type="number" step="1" min="-85" max="25" value="-28"></div></div>
+          <div class="dim">Apertura FOV iPhone (°)<div class="dimrow"><input id="scfov" type="range" min="35" max="120" step="1" value="75"><input id="cfov" type="number" step="1" min="20" max="360" value="75"></div></div>
+          <div class="row"><button id="alignCam" type="button">Allinea a vista</button><button id="toggleCamView" type="button">Vista iPhone <kbd>0</kbd></button></div>
+          <button id="saveCam" class="pri" type="button">Salva camera e planimetria</button>
+          <div class="guides">
+            <span><i class="dot" style="background:#38bdf8"></i>Target a terra / anello: orienta direzione e pitch</span>
+            <span><i class="dot" style="background:#f59e0b"></i>Punta piramide: inclina su/giù</span>
+          </div>
+          <div class="subcopy">I coni d'ombra 2.5D e il campo visivo si ricalcolano in tempo reale mentre sposti o orienti l'iPhone nella scena.</div>
+        </div>
+      </section>
+      <section class="pane" data-pane="room">
+        <div class="card"><h2>Dimensioni Stanza</h2>
+          <div class="grid"><div class="fld">Larghezza X (m)<input id="rw" type="number" step="0.1" min="0.5" value="5.0"></div><div class="fld">Profondità Y (m)<input id="rd" type="number" step="0.1" min="0.5" value="4.0"></div></div>
+        </div>
+        <div class="card"><h2>Perimetro e Vertici</h2>
+          <div class="guides"><span><i class="dot" style="background:#f8fafc"></i>Marcatori bianchi: trascina per sagomare gli angoli</span><span><i class="dot" style="background:#818cf8"></i>Marcatori viola a metà parete: dividi un muro</span></div>
+          <div class="row"><button id="delRoomVtx" type="button" disabled>Elimina angolo selezionato</button></div>
+        </div>
+      </section>
     </div>
-    <div class="card"><h3>Oggetti nella stanza (<span id="cnt">0</span>)</h3><div id="olist"></div></div>
   </aside>
-  <div id="view"><div id="hint">Trascina un blocco sul pavimento per spostarlo · Trascina i pallini su lati e tetto per larghezza/lunghezza/altezza · Trascina lo sfondo per ruotare</div></div>
+  <div id="view">
+    <div id="vleg"><span><i class="dot" style="background:rgba(56,189,248,.42);border:1px solid #38bdf8"></i>Cono visivo iPhone (FOV)</span><span><i class="dot" style="background:rgba(5,7,11,.78);border:1px solid #475569"></i>Fuori inquadratura</span><span><i class="dot" style="background:rgba(204,51,17,.58);border:1px solid #f59e0b"></i>Zona d'ombra 2.5D</span></div>
+    <div id="hint"><span><kbd>Shift+A</kbd> Nuovo cubo</span><span><kbd>R</kbd> Ruota</span><span><kbd>0</kbd> Vista iPhone</span><span><kbd>Ctrl+Z</kbd> Annulla</span><span>Trascina target, anello o camera</span></div>
+  </div>
 </div>
+<script>
+window.OracoloUI = (() => {
+  const tabs = [...document.querySelectorAll('.tab')], panes = [...document.querySelectorAll('.pane')];
+  function setTab(name) {
+    tabs.forEach((t) => { const on = t.dataset.tab === name; t.classList.toggle('active', on); t.setAttribute('aria-selected', on); });
+    panes.forEach((p) => p.classList.toggle('active', p.dataset.pane === name));
+  }
+  tabs.forEach((t) => t.addEventListener('click', () => setTab(t.dataset.tab)));
+  return { setTab };
+})();
+window.OracoloGeom = (() => {
+  const snap = (v) => Math.round(v * 20) / 20, rnd = (v) => Math.round(v * 100) / 100;
+  const polySpan = (pts) => {
+    const xs = pts.map((p) => p[0]), ys = pts.map((p) => p[1]);
+    const minx = Math.min(...xs), maxx = Math.max(...xs), miny = Math.min(...ys), maxy = Math.max(...ys);
+    return { minx, maxx, miny, maxy, w: maxx - minx, d: maxy - miny, cx: (minx + maxx) / 2, cy: (miny + maxy) / 2 };
+  };
+  const polyArea = (pts) => pts.reduce((a, p, i) => { const q = pts[(i + 1) % pts.length]; return a + p[0] * q[1] - q[0] * p[1]; }, 0) / 2;
+  const ensureCCW = (pts) => { const c = pts.map((p) => [rnd(p[0]), rnd(p[1])]); return polyArea(c) < 0 ? c.reverse() : c; };
+  const cleanRing = (coords) => {
+    if (!Array.isArray(coords)) return [];
+    const out = [];
+    for (const p of coords) {
+      const pt = [rnd(Number(p[0])), rnd(Number(p[1]))];
+      if (!Number.isFinite(pt[0]) || !Number.isFinite(pt[1])) continue;
+      if (!out.length || Math.hypot(pt[0] - out[out.length - 1][0], pt[1] - out[out.length - 1][1]) >= 1e-4) out.push(pt);
+    }
+    if (out.length >= 2 && Math.hypot(out[0][0] - out[out.length - 1][0], out[0][1] - out[out.length - 1][1]) < 1e-4) out.pop();
+    return out;
+  };
+  const translatePoly = (pts, dx, dy) => pts.map((p) => [rnd(p[0] + dx), rnd(p[1] + dy)]);
+  const scalePolyTo = (pts, nw, nd) => {
+    const s = polySpan(pts), sx = s.w > 1e-6 && nw > 0 ? nw / s.w : 1, sy = s.d > 1e-6 && nd > 0 ? nd / s.d : 1;
+    return pts.map((p) => [rnd(s.minx + (p[0] - s.minx) * sx), rnd(s.miny + (p[1] - s.miny) * sy)]);
+  };
+  const rotatePoly = (pts, deg) => {
+    const s = polySpan(pts), rad = (deg * Math.PI) / 180, c = Math.cos(rad), sn = Math.sin(rad);
+    return pts.map((p) => [rnd(s.cx + (p[0] - s.cx) * c - (p[1] - s.cy) * sn), rnd(s.cy + (p[0] - s.cx) * sn + (p[1] - s.cy) * c)]);
+  };
+  const insertVertexAt = (pts, idx) => {
+    const i = ((idx % pts.length) + pts.length) % pts.length, j = (i + 1) % pts.length, out = pts.slice();
+    out.splice(i + 1, 0, [rnd((pts[i][0] + pts[j][0]) / 2), rnd((pts[i][1] + pts[j][1]) / 2)]); return out;
+  };
+  const longestEdgeIdx = (pts) => {
+    let best = 0, bestLen = -1;
+    pts.forEach((p, i) => { const q = pts[(i + 1) % pts.length], l = Math.hypot(q[0] - p[0], q[1] - p[1]); if (l > bestLen) { bestLen = l; best = i; } });
+    return best;
+  };
+  const removeVertexAt = (pts, idx) => { if (pts.length <= 3) return pts.slice(); const o = pts.slice(); o.splice(idx, 1); return o; };
+  function extrudeEdge(pts, edgeIdx, dist = 0.5) {
+    let c = ensureCCW(pts), i = ((edgeIdx % c.length) + c.length) % c.length;
+    if (c.length === 4) c = insertVertexAt(c, i);
+    const j = (i + 1) % c.length, pa = c[i], pb = c[j], dx = pb[0] - pa[0], dy = pb[1] - pa[1], len = Math.hypot(dx, dy) || 1;
+    const nx = dy / len, ny = -dx / len, out = c.slice();
+    out.splice(i + 1, 0, [rnd(pa[0] + nx * dist), rnd(pa[1] + ny * dist)], [rnd(pb[0] + nx * dist), rnd(pb[1] + ny * dist)]);
+    return out;
+  }
+  function clipHP(pts, ox, oy, nx, ny) {
+    if (!pts.length) return [];
+    const out = [], side = (p) => (p[0] - ox) * nx + (p[1] - oy) * ny;
+    for (let i = 0; i < pts.length; i++) {
+      const a = pts[i], b = pts[(i + 1) % pts.length], da = side(a), db = side(b);
+      if (da >= -1e-6) {
+        out.push(a);
+        if (db < -1e-6) { const t = da / (da - db); out.push([a[0] + t * (b[0] - a[0]), a[1] + t * (b[1] - a[1])]); }
+      } else if (db >= -1e-6) {
+        const t = da / (da - db); out.push([a[0] + t * (b[0] - a[0]), a[1] + t * (b[1] - a[1])]);
+      }
+    }
+    return out;
+  }
+  function defaultCamDir(bounds, xy) {
+    if (!bounds || bounds.length < 3 || !Array.isArray(xy)) return 0;
+    const b = polySpan(bounds); return Math.round((Math.atan2(b.cy - xy[1], b.cx - xy[0]) * 180) / Math.PI);
+  }
+  function computeFovWedges(bounds, cam) {
+    const b = bounds && bounds.length >= 3 ? polySpan(bounds) : { w: 6, d: 5 };
+    const diag = Math.hypot(b.w, b.d) || 6, [cx, cy] = cam.xy, R = diag * 2.5;
+    const dirDeg = Number.isFinite(Number(cam.dir)) ? Number(cam.dir) : defaultCamDir(bounds, cam.xy);
+    const fovDeg = Math.max(20, Math.min(360, Number(cam.fov) || 75)), dirRad = (dirDeg * Math.PI) / 180, halfRad = ((fovDeg * Math.PI) / 180) / 2;
+    const arc = (a0, a1, n) => Array.from({ length: n + 1 }, (_, i) => { const a = a0 + ((a1 - a0) * i) / n; return [cx + R * Math.cos(a), cy + R * Math.sin(a)]; });
+    const fovPoly = halfRad >= Math.PI - 0.01 ? [] : [[cx, cy], ...arc(dirRad - halfRad, dirRad + halfRad, 28)];
+    const blindPoly = halfRad >= Math.PI - 0.01 ? [] : [[cx, cy], ...arc(dirRad + halfRad, dirRad + 2 * Math.PI - halfRad, 36)];
+    const ch = Math.max(0.05, Number(cam.h) || 1.8), rayLen = Math.min(R, diag * 1.4), fovRays = [];
+    if (halfRad < Math.PI - 0.01) {
+      [dirRad - halfRad, dirRad + halfRad].forEach((a) => fovRays.push(cx, ch, -cy, cx + rayLen * Math.cos(a), 0.015, -(cy + rayLen * Math.sin(a))));
+    }
+    return { fovPoly, blindPoly, dirRad, halfRad, tip: [rnd(cx + Math.cos(dirRad) * 1.1), rnd(cy + Math.sin(dirRad) * 1.1)], fovRays };
+  }
+  function computeShadows(bounds, obstacles, cam) {
+    if (!bounds || bounds.length < 3 || !cam || !Array.isArray(cam.xy)) return [];
+    const b = polySpan(bounds), diag = Math.hypot(b.w, b.d) || 6, [cx, cy] = cam.xy, ch = Math.max(0.05, Number(cam.h) || 1.8);
+    const { dirRad, halfRad } = computeFovWedges(bounds, cam);
+    const clipToFov = (pts) => {
+      if (halfRad >= Math.PI - 0.01) return pts;
+      const aL = dirRad + halfRad, aR = dirRad - halfRad;
+      let p = clipHP(pts, cx, cy, -Math.sin(aR), Math.cos(aR));
+      if (halfRad <= Math.PI / 2 + 1e-3) p = clipHP(p, cx, cy, Math.sin(aL), -Math.cos(aL));
+      return p;
+    };
+    return (obstacles || []).map((o) => {
+      const pts = clipToFov(o.coords || []), h = Number(o.height) || 0;
+      if (pts.length < 3 || h <= 0.02) return null;
+      const minD = Math.min(...pts.map(([x, y]) => Math.hypot(x - cx, y - cy))), blocked = h >= ch - 0.02;
+      const infS = Math.max(15, (diag * 3) / Math.max(minD, 0.2)), s = blocked ? infS : Math.min(ch / (ch - h), infS);
+      const proj = pts.map(([x, y]) => [rnd(cx + (x - cx) * s), rnd(cy + (y - cy) * s)]), quads = [];
+      for (let i = 0; i < pts.length; i++) {
+        const j = (i + 1) % pts.length, q = [pts[i], pts[j], proj[j], proj[i]];
+        if (Math.abs(polyArea(q)) > 1e-4) quads.push(q);
+      }
+      const a0 = Math.atan2(pts[0][1] - cy, pts[0][0] - cx);
+      let minA = Infinity, maxA = -Infinity, iMin = 0, iMax = 0;
+      pts.forEach(([x, y], idx) => {
+        let da = ((Math.atan2(y - cy, x - cx) - a0 + Math.PI) % (2 * Math.PI)) - Math.PI;
+        if (da < -Math.PI) da += 2 * Math.PI;
+        if (da < minA) { minA = da; iMin = idx; }
+        if (da > maxA) { maxA = da; iMax = idx; }
+      });
+      const rays = [];
+      [...new Set([iMin, iMax])].forEach((idx) => {
+        const p = pts[idx], pr = proj[idx], d = Math.hypot(p[0] - cx, p[1] - cy) || 1;
+        const tipDist = Math.min(Math.hypot(pr[0] - cx, pr[1] - cy), diag * 1.2);
+        const tz = blocked ? Math.min(ch, h) : Math.max(0.015, ch + (tipDist / d) * (h - ch));
+        rays.push(cx, ch, -cy, cx + ((p[0] - cx) / d) * tipDist, tz, -(cy + ((p[1] - cy) / d) * tipDist));
+      });
+      return { quads, top: proj, rays, blocked };
+    }).filter(Boolean);
+  }
+  const cube = (cx, cy, w = 1, d = 1) => [[rnd(cx - w / 2), rnd(cy - d / 2)], [rnd(cx + w / 2), rnd(cy - d / 2)], [rnd(cx + w / 2), rnd(cy + d / 2)], [rnd(cx - w / 2), rnd(cy + d / 2)]];
+  let toastT = null;
+  function flashSave(btn, text, isErr = false) {
+    const m = document.getElementById('msg'), t = document.getElementById('toast'), ts = new Date().toLocaleTimeString('it-IT'), tag = isErr ? '[ERRORE]' : '[OK]';
+    if (m) { m.className = isErr ? 'err' : 'ok'; m.textContent = `[${ts}] ${tag} ${text}`; }
+    if (t) { t.textContent = `${tag} ${text}`; t.className = 'show' + (isErr ? ' err' : ''); clearTimeout(toastT); toastT = setTimeout(() => { t.className = ''; }, 2500); }
+    const btns = [...new Set([btn, document.getElementById('save'), document.getElementById('saveCam')].filter((b) => b && b.tagName === 'BUTTON'))];
+    btns.forEach((b) => {
+      clearTimeout(b._t);
+      if (isErr) { b.classList.remove('ok'); if (b.dataset.orig) { b.textContent = b.dataset.orig; delete b.dataset.orig; } return; }
+      if (!b.dataset.orig && b.textContent !== 'Salvataggio in corso...') b.dataset.orig = b.textContent;
+      b.classList.add('ok'); b.textContent = '[OK] Salvato';
+      b._t = setTimeout(() => { b.classList.remove('ok'); if (b.dataset.orig) { b.textContent = b.dataset.orig; delete b.dataset.orig; } }, 2000);
+    });
+  }
+  return { snap, rnd, polySpan, polyArea, ensureCCW, cleanRing, translatePoly, scalePolyTo, rotatePoly, insertVertexAt, longestEdgeIdx, removeVertexAt, extrudeEdge, defaultCamDir, computeFovWedges, computeShadows, cube, flashSave };
+})();
+</script>
 <script type="module" src="/room.js"></script>
 </body></html>

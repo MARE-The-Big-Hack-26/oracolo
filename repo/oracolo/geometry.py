@@ -85,6 +85,67 @@ def _wedge(origin, heading, half_angle, radius, n=48) -> Polygon:
     return Polygon(pts)
 
 
+def _scene_diag(scene: Scene) -> float:
+    return float(np.hypot(*np.ptp(np.asarray(scene.bounds.exterior.coords), axis=0)))
+
+
+def obstacle_shadow(origin, occ: Occluder, eye_h: float, target_h: float = 0.0, max_reach: float = 30.0) -> Polygon:
+    """Ombra 2.5D proiettata a quota ``target_h`` da ``occ`` visto da ``origin`` a quota ``eye_h``."""
+    if occ.height <= target_h or occ.poly.is_empty or occ.poly.geom_type != "Polygon":
+        return Polygon()
+    cx, cy = float(origin[0]), float(origin[1])
+    ring = list(occ.poly.exterior.coords)[:-1]
+    if len(ring) < 3:
+        return Polygon()
+    min_d = min(float(np.hypot(x - cx, y - cy)) for x, y in ring)
+    inf_scale = max(float(max_reach), float(max_reach) / max(min_d, 0.05))
+    s = inf_scale if (eye_h <= target_h or occ.height >= eye_h - 0.02) else min((eye_h - target_h) / (eye_h - occ.height), inf_scale)
+    proj = [(cx + (x - cx) * s, cy + (y - cy) * s) for x, y in ring]
+    parts = []
+    p_poly = Polygon(proj)
+    if not p_poly.is_valid:
+        p_poly = p_poly.buffer(0)
+    if not p_poly.is_empty and p_poly.area > 1e-9:
+        parts.append(p_poly)
+    for i in range(len(ring)):
+        j = (i + 1) % len(ring)
+        q = Polygon([ring[i], ring[j], proj[j], proj[i]])
+        if not q.is_valid:
+            q = q.buffer(0)
+        if not q.is_empty and q.area > 1e-9:
+            parts.append(q)
+    if not parts:
+        return Polygon()
+    sh = unary_union(parts).difference(occ.poly)
+    return sh if sh.is_valid else sh.buffer(0)
+
+
+def scene_shadows(
+    origin,
+    scene: Scene,
+    eye_h: float = 1.8,
+    target_h: float = 0.0,
+    heading: float | None = None,
+    half_fov: float = np.pi,
+) -> list[list[list[float]]]:
+    """Anelli dei poligoni d'ombra 2.5D proiettati dagli ostacoli sull'area percorribile."""
+    if not scene.occluders:
+        return []
+    reach = max(30.0, _scene_diag(scene) * 3.0)
+    valid = [g for g in (obstacle_shadow(origin, o, eye_h, target_h, reach) for o in scene.occluders) if not g.is_empty]
+    if not valid:
+        return []
+    area = scene.walkable()
+    if heading is not None and half_fov < np.pi:
+        area = area.intersection(_wedge(origin, heading, half_fov, reach))
+    merged = unary_union(valid).intersection(area)
+    if merged.is_empty:
+        return []
+    geoms = [merged] if merged.geom_type == "Polygon" else list(getattr(merged, "geoms", []))
+    return [[[round(x, 3), round(y, 3)] for x, y in g.exterior.coords]
+            for g in geoms if g.geom_type == "Polygon" and not g.is_empty and g.area > 1e-6]
+
+
 def visibility_polygon(
     origin,
     scene: Scene,
@@ -95,10 +156,15 @@ def visibility_polygon(
     max_range: float | None = None,
     n_base: int = 360,
 ):
-    """Poligono visibile da ``origin`` (algoritmo a raggi, esatto sui vertici)."""
+    """Poligono visibile da ``origin`` (algoritmo a raggi sui blocchi alti + ombre 2.5D)."""
     ox, oy = origin
     thr = min(eye_h, target_h)
-    blockers = [o.poly for o in scene.occluders if o.height > thr]
+    if eye_h > target_h:
+        blockers = [o.poly for o in scene.occluders if o.height >= eye_h]
+        partial = [o for o in scene.occluders if target_h < o.height < eye_h]
+    else:
+        blockers = [o.poly for o in scene.occluders if o.height > thr]
+        partial = []
     segs = _segments([scene.bounds, *blockers])
     verts = segs[:, :2]
     base = np.arctan2(verts[:, 1] - oy, verts[:, 0] - ox)
@@ -114,10 +180,17 @@ def visibility_polygon(
     poly = Polygon(pts)
     if not poly.is_valid:
         poly = poly.buffer(0)
+    if partial:
+        reach = max(30.0, _scene_diag(scene) * 3.0)
+        cuts = [g for g in ([obstacle_shadow(origin, o, eye_h, target_h, reach) for o in partial] + [o.poly for o in partial]) if not g.is_empty]
+        if cuts:
+            poly = poly.difference(unary_union(cuts))
+            if not poly.is_valid:
+                poly = poly.buffer(0)
     if max_range is not None:
         poly = poly.intersection(Point(origin).buffer(max_range, 48))
     if heading is not None and half_fov < np.pi:
-        radius = max_range or (np.hypot(*np.ptp(np.asarray(scene.bounds.exterior.coords), axis=0)) * 2)
+        radius = max_range or (_scene_diag(scene) * 2)
         poly = poly.intersection(_wedge(origin, heading, half_fov, radius))
     return poly
 

@@ -19,9 +19,9 @@ pip install -r requirements.txt
 make room                              # genera scenarios/stanza.dxf da scenarios/stanza_esempio.json (misure della vostra area)
 make camera                            # avvia il server (HTTPS, porta 8443)
 ```
-- **Mac:** `https://localhost:8443/` (pannello). Accettare l'avviso del certificato la prima volta.
-- **iPhone:** `https://<IP-del-Mac>:8443/camera` (l'indirizzo lo stampa il terminale). Safari: «Mostra dettagli → visita il sito web», poi **Avvia** e consenti la camera. Orizzontale, fermo sul treppiede. Mac e iPhone sulla stessa rete (o hotspot).
-- **Calibrazione (una volta, treppiede fermo):** `https://localhost:8443/calibrate`
+- **Mac:** `http://localhost:8443/` (pannello, senza alcun avviso certificato; la porta 8443 accetta sia HTTP che HTTPS).
+- **iPhone (e altri dispositivi):** di default `run_camera.py` apre automaticamente un **Cloudflare Quick Tunnel** (`https://<id>.trycloudflare.com/camera`, scaricando `cloudflared` in `~/.cache/oracolo/cloudflared` se assente) con certificato HTTPS pubblico riconosciuto da iOS/Android/macOS senza avvisi *"Non sicuro"*. In assenza di rete o con `--no-tunnel`, usa il fallback LAN `https://<IP-del-Mac>:8443/camera`.
+- **Calibrazione (una volta, treppiede fermo):** `http://localhost:8443/calibrate`
   1. «Aggiorna immagine»; 2. clicca un punto A TERRA sul video e lo stesso punto sulla mappa (angolo della stanza, base di un mobile), almeno 4, ben distanziati; 3. «Imposta posizione camera» e clicca dove sta sulla mappa; altezza della camera da terra; 4. «Calcola e salva» → `calib.json` (errore medio in cm).
 - **Sedia:** stampare `markers/marker_muletto_ID0_A4.pdf` (100%, carta opaca), incollarlo piatto sulla sedia con il lato SUPERIORE verso il davanti; quota del marker `--marker-h` (default 0,45 m).
 

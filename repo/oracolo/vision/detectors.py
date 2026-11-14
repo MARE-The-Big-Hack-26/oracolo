@@ -121,7 +121,7 @@ class YoloPersonDetector:
         self.device = device or _best_device()
 
     def detect(self, frame) -> list:
-        res = self.model.predict(frame, classes=[0], conf=self.threshold, device=self.device, verbose=False)[0]
+        res = self.model.predict(frame, classes=[0], conf=self.threshold, imgsz=512, device=self.device, verbose=False)[0]
         if res.boxes is None or len(res.boxes) == 0:
             return []
         H = frame.shape[0]

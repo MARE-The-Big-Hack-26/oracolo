@@ -18,7 +18,7 @@ import cv2
 from oracolo.cad import load_dxf
 from oracolo.policy import PedParams, VehicleParams
 from oracolo.vision.calib import Calibration
-from oracolo.vision.certs import ensure_cert, lan_ip
+from oracolo.vision.certs import ensure_cert, lan_ip, start_tunnel
 from oracolo.vision.detectors import MarkerDetector, build_person_detector
 from oracolo.vision.pipeline import LivePipeline
 from oracolo.vision.server import LiveApp, serve
@@ -31,6 +31,7 @@ ap.add_argument("--detector", default="auto",
                 help="auto | yolo[:pose|11n|11s] | rfdetr[:nano|small|base] | hog | none")
 ap.add_argument("--port", type=int, default=8443)
 ap.add_argument("--http", action="store_true", help="senza HTTPS (solo prove sul Mac: l'iPhone richiede HTTPS)")
+ap.add_argument("--no-tunnel", action="store_true", help="usa solo LAN locale senza tunnel HTTPS pubblico")
 ap.add_argument("--certs", default="certs")
 ap.add_argument("--marker-id", type=int, default=0)
 ap.add_argument("--marker-h", type=float, default=0.45, help="quota del marker sulla sedia (m)")
@@ -51,8 +52,8 @@ print("Calibrazione:", f"caricata da {a.calib} (errore {calib.rms_m * 100:.1f} c
 
 PROFILES = {
     # sedia spinta a mano: ~1 m/s, ingombro 0,6 m, area di prova di pochi metri
-    "sedia": VehicleParams(v_max=1.0, a_brake=1.2, t_sys=0.4, t_act=0.1, margin=0.3, half_width=0.3, horizon=3.0),
-    "magazzino": VehicleParams(),
+    "sedia": VehicleParams(v_max=1.0, a_brake=1.2, t_sys=0.4, t_act=0.1, margin=0.3, half_width=0.3, horizon=3.0, max_frame_age=1.2),
+    "magazzino": VehicleParams(max_frame_age=1.2),
 }
 person_det = build_person_detector(a.detector)
 det_desc = f"{type(person_det).__name__}" + (f" ({person_det.weights}, {person_det.device})" if hasattr(person_det, "weights") else "")
@@ -61,11 +62,17 @@ pipe = LivePipeline(scene, calib, params=PROFILES[a.profile], ped=PedParams(v_wa
                     person_detector=person_det,
                     marker=MarkerDetector(a.marker_id, height=a.marker_h))
 ip = lan_ip()
-scheme = "http" if a.http else "https"
-cam_url = f"{scheme}://{ip}:{a.port}/camera"
+lan_cam_url = f"{'http' if a.http else 'https'}://{ip}:{a.port}/camera"
 app = LiveApp(pipe, a.calib, dxf_path=a.dxf)
 cert, key = (None, None) if a.http else ensure_cert(a.certs)
-serve(app, "0.0.0.0", a.port, cert, key, cam_url)
+serve(app, "0.0.0.0", a.port, cert, key, lan_cam_url)
+
+tunnel_url, _tunnel_proc = (None, None)
+if not a.http and not a.no_tunnel:
+    print("Avvio tunnel HTTPS sicuro (nessun avviso certificato su iPhone/Mac)...")
+    tunnel_url, _tunnel_proc = start_tunnel(a.port)
+    if tunnel_url:
+        app.camera_url = f"{tunnel_url}/camera"
 
 
 def capture(kind: str, arg: str):
@@ -92,12 +99,20 @@ if a.source != "stream":
     kind, _, arg = a.source.partition(":")
     threading.Thread(target=capture, args=(kind, arg), daemon=True).start()
 
-print(f"\nPannello (Mac):  {scheme}://localhost:{a.port}/")
-print(f"Planimetria:     {scheme}://localhost:{a.port}/room")
-print(f"iPhone:          {cam_url}")
-print(f"Calibrazione:    {scheme}://localhost:{a.port}/calibrate\n(Ctrl+C per fermare)")
+print(f"\nPannello (Mac):  http://localhost:{a.port}/   (nessun avviso certificato)")
+print(f"Planimetria:     http://localhost:{a.port}/room")
+print(f"Calibrazione:    http://localhost:{a.port}/calibrate")
+if tunnel_url:
+    print(f"iPhone (HTTPS sicuro):   {tunnel_url}/camera")
+    print(f"Pannello remoto (HTTPS): {tunnel_url}/")
+    print(f"Fallback LAN locale:     {lan_cam_url}")
+else:
+    print(f"iPhone (LAN):            {lan_cam_url}")
+print("(Ctrl+C per fermare)")
 try:
     while True:
         time.sleep(1)
 except KeyboardInterrupt:
     app.running = False
+    if _tunnel_proc is not None and _tunnel_proc.poll() is None:
+        _tunnel_proc.terminate()

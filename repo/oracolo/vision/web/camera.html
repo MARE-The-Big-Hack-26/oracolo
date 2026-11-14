@@ -1,19 +1,29 @@
 <!doctype html><html lang="it"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Oracolo – camera</title><style>
-html,body{margin:0;height:100%;background:#000;color:#fff;font-family:-apple-system,Helvetica,Arial,sans-serif}
-video{width:100%;height:100%;object-fit:contain;background:#000}
-#hud{position:fixed;left:8px;right:8px;top:calc(env(safe-area-inset-top,0px) + 8px);display:flex;gap:8px;flex-wrap:wrap;font-size:14px}
-#hud span{background:rgba(0,0,0,.55);padding:4px 8px;border-radius:8px}
-#start{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#111;gap:16px;text-align:center;padding:24px}
-button{font-size:20px;padding:14px 26px;border-radius:14px;border:0;background:#2563eb;color:#fff}
-small{opacity:.8;max-width:340px}
+<title>Oracolo - Camera Fissa</title><style>
+*{box-sizing:border-box}
+::selection{background:#1d4ed8;color:#ffffff}
+html,body{margin:0;height:100%;background:#07090e;color:#f8fafc;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;font-variant-numeric:tabular-nums;-webkit-font-smoothing:antialiased}
+button:focus-visible{outline:2px solid #38bdf8;outline-offset:2px}
+video{width:100%;height:100%;object-fit:contain;background:#000000}
+#hud{position:fixed;left:10px;right:10px;top:calc(env(safe-area-inset-top,0px) + 10px);display:flex;gap:8px;flex-wrap:wrap;font-size:13px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+#hud span{background:rgba(11,14,20,.82);border:1px solid #334155;color:#ffffff;padding:5px 10px;border-radius:6px;font-weight:600}
+#start{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#0b0e14;gap:16px;text-align:center;padding:24px}
+.brand{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;padding:4px 10px;border-radius:4px;background:#1e293b;color:#ffffff;border:1px solid #334155}
+h2{margin:0;font-size:24px;color:#ffffff;letter-spacing:-.01em}
+button{font-size:18px;font-weight:700;padding:14px 32px;border-radius:8px;border:1px solid #3b82f6;background:#1d4ed8;color:#ffffff;cursor:pointer}
+button:hover{background:#1e40af}
+p{margin:0;color:#cbd5e1;font-size:14px;max-width:360px;line-height:1.5}
+#err{color:#f87171;font-size:13px;font-weight:600;max-width:360px;min-height:20px}
 </style></head><body>
-<div id="start"><h2>Camera fissa Oracolo</h2>
-<small>Appoggia l'iPhone sul treppiede, in orizzontale, fermo. Premi Avvia e consenti l'uso della camera.</small>
-<button id="go">Avvia</button><small id="err"></small></div>
+<div id="start">
+  <h2>Oracolo · Camera Fissa</h2>
+  <p>Posiziona l'iPhone sul treppiede in orientamento orizzontale e stabile. Premi Avvia per trasmettere i fotogrammi al nodo centrale.</p>
+  <button id="go" type="button">Avvia trasmissione</button>
+  <div id="err"></div>
+</div>
 <video id="v" playsinline autoplay muted></video><canvas id="c" hidden></canvas>
-<div id="hud"><span id="s1">pronto</span><span id="s2"></span><span id="s3"></span></div>
+<div id="hud"><span id="s1">STATO: PRONTO</span><span id="s2">0.0 fps</span><span id="s3">--</span></div>
 <script>
 const W = 960, FPS = 10, Q = 0.72;
 let sent = 0, errs = 0, inflight = false, t0 = performance.now();
@@ -21,7 +31,7 @@ const v = document.getElementById('v'), c = document.getElementById('c');
 async function start() {
   const err = document.getElementById('err');
   if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-    err.textContent = 'Camera non disponibile: serve una pagina HTTPS (https://…). Accetta l\'avviso del certificato.'; return;
+    err.textContent = 'Camera non disponibile: apri la pagina in HTTPS (https://...) e accetta il certificato.'; return;
   }
   try {
     const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 }, frameRate: { ideal: 30 } }, audio: false });
@@ -29,7 +39,7 @@ async function start() {
     document.getElementById('start').style.display = 'none';
     try { await navigator.wakeLock.request('screen'); } catch (e) {}
     setInterval(tick, 1000 / FPS); setInterval(stats, 1000);
-  } catch (e) { err.textContent = 'Errore camera: ' + e.name + ' – ' + e.message; }
+  } catch (e) { err.textContent = 'Errore accesso camera: ' + e.name + ' - ' + e.message; }
 }
 function tick() {
   if (inflight || !v.videoWidth) return;
@@ -45,10 +55,10 @@ function tick() {
 }
 function stats() {
   const dt = (performance.now() - t0) / 1000;
-  document.getElementById('s1').textContent = 'inviati ' + sent;
+  document.getElementById('s1').textContent = 'FRAME: ' + sent;
   document.getElementById('s2').textContent = (sent / dt).toFixed(1) + ' fps';
-  document.getElementById('s3').textContent = errs ? ('errori ' + errs) : (v.videoWidth + '×' + v.videoHeight);
+  document.getElementById('s3').textContent = errs ? ('ERRORI: ' + errs) : (v.videoWidth + 'x' + v.videoHeight);
 }
 document.getElementById('go').addEventListener('click', start);
-if (location.search.indexOf('auto') >= 0) start();  // prove automatiche
+if (location.search.indexOf('auto') >= 0) start();
 </script></body></html>

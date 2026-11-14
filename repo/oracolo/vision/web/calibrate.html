@@ -1,67 +1,104 @@
 <!doctype html><html lang="it"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Oracolo – calibrazione</title><style>
-*{box-sizing:border-box}body{margin:0;background:#0f1115;color:#e8eaed;font-family:-apple-system,Helvetica,Arial,sans-serif}
-header{padding:10px 16px;background:#1b2330;display:flex;gap:14px;align-items:center;flex-wrap:wrap}
-header b{font-size:17px}button,input{font-size:14px;padding:7px 12px;border-radius:8px;border:1px solid #3a4152;background:#232a38;color:#e8eaed}
-button.pri{background:#2563eb;border-color:#2563eb}button.act{background:#cc6a10;border-color:#cc6a10;font-weight:600}button:disabled{opacity:.4}
-#cols{display:flex;gap:10px;padding:10px}.box{flex:1;background:#171a21;border-radius:10px;padding:8px}
-canvas{width:100%;display:block;cursor:crosshair;background:#000;border-radius:6px}
-#msg{padding:6px 16px;min-height:28px;font-size:14px}.hint{opacity:.75;font-size:13px;padding:0 16px 10px}
-#qrcard{position:fixed;top:64px;right:16px;background:#1e222b;border:1px solid #3a4152;border-radius:12px;padding:14px 18px;text-align:center;box-shadow:0 10px 30px rgba(0,0,0,.6);z-index:20;display:none;max-width:260px}
-#qrcard img{width:170px;height:170px;border-radius:8px;background:#fff;display:block;margin:8px auto}
-#qrcard .u{font-family:monospace;font-size:12px;color:#8ab4f8;word-break:break-all}
+<title>Oracolo - Calibrazione Camera</title><style>
+*{box-sizing:border-box}
+::selection{background:#1d4ed8;color:#ffffff}
+body{margin:0;background:#0b0e14;color:#f1f5f9;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;font-variant-numeric:tabular-nums;-webkit-font-smoothing:antialiased}
+button:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible{outline:2px solid #38bdf8;outline-offset:2px}
+header{padding:10px 18px;background:#121824;border-bottom:1px solid #242e42;display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.brand{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;padding:4px 8px;border-radius:4px;background:#1e293b;color:#ffffff;border:1px solid #334155}
+header b{font-size:16px;color:#ffffff}
+#step{font-size:13px;font-weight:600;color:#93c5fd;background:#162032;border:1px solid #253959;padding:5px 10px;border-radius:6px;flex:1;min-width:220px}
+.nav{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+button,input,select{font-size:13px;padding:6px 10px;border-radius:6px;border:1px solid #334155;background:#1e2636;color:#f8fafc;font-family:inherit;font-variant-numeric:tabular-nums}
+button{cursor:pointer;font-weight:600;transition:background .12s,border-color .12s}
+button:hover{border-color:#60a5fa;background:#263147}
+button.pri{background:#1d4ed8;border-color:#3b82f6;color:#ffffff;font-weight:700}
+button.pri:hover{background:#1e40af}
+button.act{background:#92400e;border-color:#f59e0b;color:#ffffff;font-weight:700}
+button.dan{background:#991b1b;border-color:#ef4444;color:#ffffff;font-weight:700}
+button:disabled{opacity:.45;cursor:default}
+button.ok{background:#15803d!important;border-color:#22c55e!important;color:#ffffff!important;font-weight:700;transition:all .15s}
+header a{color:#ffffff;font-size:13px;font-weight:600;text-decoration:none;padding:6px 12px;border-radius:6px;background:#1e2636;border:1px solid #334155}
+header a:hover{border-color:#60a5fa;background:#263147}
+label{font-size:13px;color:#cbd5e1;display:inline-flex;align-items:center;gap:5px;font-weight:500}
+#msg{padding:7px 18px;min-height:32px;font-size:13px;color:#93c5fd;background:#0e131d;border-bottom:1px solid #1e2636;display:flex;align-items:center}
+#msg.ok{color:#4ade80;font-weight:600}
+#msg.err{color:#f87171;font-weight:600}
+#cols{display:flex;gap:12px;padding:12px}
+.box{flex:1;background:#121722;border:1px solid #242c3d;border-radius:8px;padding:10px;display:flex;flex-direction:column;gap:8px;min-width:0}
+.bar-sub{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;padding-bottom:6px;border-bottom:1px solid #1e2636}
+.bar-sub strong{font-size:13px;letter-spacing:.03em;text-transform:uppercase;color:#e2e8f0;font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+.tools{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+canvas{width:100%;display:block;cursor:crosshair;background:#07090e;border-radius:6px;border:1px solid #1e2636}
+#ptsbar{margin:0 12px 12px;background:#121722;border:1px solid #242c3d;border-radius:8px;padding:10px 12px;display:flex;flex-direction:column;gap:8px}
+#ptslist{display:flex;flex-wrap:wrap;gap:8px}
+.pt-chip{display:flex;align-items:center;gap:6px;background:#171e2d;border:1px solid #2d384f;border-radius:6px;padding:5px 8px;font-size:12px}
+.pt-chip.sel{border-color:#38bdf8;background:#1a2740}
+.pt-chip input{width:56px;padding:3px 5px;font-size:12px}
+.err-tag{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;padding:2px 6px;border-radius:4px;font-weight:700;font-size:11px}
+.err-ok{background:#14532d;color:#86efac}.err-warn{background:#78350f;color:#fde68a}.err-bad{background:#7f1d1d;color:#fca5a5}
+.hint{color:#cbd5e1;font-size:13px;padding:0 12px 12px;line-height:1.45}
+#toast{position:fixed;top:62px;right:18px;background:#15803d;color:#ffffff;border:2px solid #86efac;padding:9px 16px;border-radius:8px;font-weight:700;font-size:13px;box-shadow:0 6px 14px rgba(0,0,0,.5);z-index:99;opacity:0;transform:translateY(-8px);pointer-events:none;transition:opacity .18s,transform .18s}
+#toast.show{opacity:1;transform:translateY(0)}
+#toast.err{background:#991b1b;border-color:#fca5a5}
+#qrcard{position:fixed;top:64px;right:18px;background:#161c28;border:2px solid #3b82f6;border-radius:10px;padding:14px 18px;text-align:center;box-shadow:0 8px 16px rgba(0,0,0,.5);z-index:20;display:none;max-width:270px}
+#qrcard img{width:170px;height:170px;border-radius:6px;background:#ffffff;display:block;margin:8px auto}
+#qrcard .u{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;color:#93c5fd;word-break:break-all}
+@media (max-width:960px){#cols{flex-direction:column}}
 </style></head><body>
-<header><b>Calibrazione</b><span id="step">1) Clicca un punto A TERRA sul video…</span>
-<button id="qrbtn" type="button">QR iPhone</button><button id="refresh">Aggiorna immagine</button><button id="undo">Annulla ultimo</button><button id="reset">Ricomincia</button>
-<label>altezza camera (m) <input id="ch" type="number" step="0.05" value="1.8" style="width:80px"></label>
-<button id="setcam">Imposta posizione camera sulla mappa</button><button id="save" class="pri" disabled>Calcola e salva</button><a href="/room" style="color:#8ab4f8">Disegna planimetria</a><a href="/" style="color:#8ab4f8">← pannello</a></header>
-<div id="qrcard"><b>Connetti iPhone</b><img src="/qr.png" alt="QR Camera"><div class="u" id="qru"></div></div>
-<div id="msg"></div>
-<div id="cols"><div class="box"><div class="hint">VIDEO: clicca punti a terra riconoscibili (angoli stanza, base di un mobile)</div><canvas id="img"></canvas></div>
-<div class="box"><div class="hint">MAPPA: clicca lo stesso punto sulla planimetria</div><canvas id="map"></canvas></div></div>
-<div class="hint">Servono almeno 4 punti, sparsi (non su una linea). Poi segna dove sta la camera sulla mappa e a che altezza.</div>
-<script>
-let scene=null, im=new Image(), imgPts=[], worldPts=[], pending=null, cam=null, camMode=false;
-const ci=document.getElementById('img'), cm=document.getElementById('map'), msg=t=>document.getElementById('msg').textContent=t;
-function mview(){const xs=scene.bounds.map(p=>p[0]),ys=scene.bounds.map(p=>p[1]);const minx=Math.min(...xs),maxx=Math.max(...xs),miny=Math.min(...ys),maxy=Math.max(...ys);
-  const w=cm.width,h=cm.height,pad=20,sc=Math.min((w-2*pad)/(maxx-minx),(h-2*pad)/(maxy-miny));const ox=(w-sc*(maxx-minx))/2,oy=(h-sc*(maxy-miny))/2;
-  return {sc,X:x=>ox+(x-minx)*sc,Y:y=>h-oy-(y-miny)*sc,ix:px=>(px-ox)/sc+minx,iy:py=>(h-oy-py)/sc+miny};}
-function drawImg(){if(!im.naturalWidth){ci.width=640;ci.height=360;const c=ci.getContext('2d');c.fillStyle='#000';c.fillRect(0,0,640,360);c.fillStyle='#aaa';c.font='16px sans-serif';c.fillText('Nessun frame: apri /camera sull\'iPhone, poi «Aggiorna immagine»',20,180);return;}
-  ci.width=im.naturalWidth;ci.height=im.naturalHeight;const c=ci.getContext('2d');c.drawImage(im,0,0);
-  imgPts.forEach((p,i)=>{c.fillStyle='#ff3b30';c.beginPath();c.arc(p[0],p[1],8,0,7);c.fill();c.fillStyle='#fff';c.font='bold 22px sans-serif';c.fillText(String(i+1),p[0]+10,p[1]-10);});
-  if(pending){c.strokeStyle='#ff3b30';c.lineWidth=3;c.beginPath();c.arc(pending[0],pending[1],12,0,7);c.stroke();}}
-function drawMap(){if(!scene)return;cm.width=900;cm.height=Math.round(900*0.72);const c=cm.getContext('2d'),v=mview();c.fillStyle='#10131a';c.fillRect(0,0,cm.width,cm.height);
-  const poly=(pts,f,s)=>{c.beginPath();pts.forEach((p,i)=>i?c.lineTo(v.X(p[0]),v.Y(p[1])):c.moveTo(v.X(p[0]),v.Y(p[1])));c.closePath();if(f){c.fillStyle=f;c.fill();}c.strokeStyle=s;c.lineWidth=2;c.stroke();};
-  poly(scene.bounds,'#161a22','#9aa0a6');scene.occluders.forEach(o=>{if(o.coords.length)poly(o.coords,'#3b2a14','#ffa500');});
-  worldPts.forEach((p,i)=>{c.fillStyle='#3b82f6';c.beginPath();c.arc(v.X(p[0]),v.Y(p[1]),8,0,7);c.fill();c.fillStyle='#fff';c.font='bold 20px sans-serif';c.fillText(String(i+1),v.X(p[0])+10,v.Y(p[1])-10);});
-  if(cam){c.fillStyle='#34c759';c.fillRect(v.X(cam[0])-8,v.Y(cam[1])-8,16,16);c.fillStyle='#fff';c.font='16px sans-serif';c.fillText('camera',v.X(cam[0])+12,v.Y(cam[1])-10);}}
-function upd(){const n=imgPts.length,ready=n>=4&&worldPts.length===n&&cam&&!pending;
-  document.getElementById('save').disabled=!ready;
-  document.getElementById('setcam').className=camMode?'act':'';
-  document.getElementById('step').textContent=camMode?'5) Ora clicca sulla MAPPA dove si trova l\'iPhone (camera)':(pending?`${n+1}) ora clicca lo stesso punto sulla MAPPA`:`${n+1}) clicca un punto A TERRA sul video`);
-  drawImg();drawMap();}
-async function saveCalib(){
-  const n=imgPts.length;if(!(n>=4&&worldPts.length===n&&cam&&!pending&&im.naturalWidth))return;
-  const body={img:imgPts,world:worldPts,image_size:[im.naturalWidth,im.naturalHeight],cam_xy:cam,cam_h:parseFloat(document.getElementById('ch').value)||1.8};
-  try{const r=await fetch('/calib',{method:'POST',body:JSON.stringify(body)});const j=await r.json();
-    msg(j.ok?`Calibrazione salvata! Errore medio: ${(j.rms_m*100).toFixed(1)} cm. Torna al «← pannello».`:('Errore: '+j.error));}catch(e){msg('Errore di rete: '+e);}}
-function pos(e,cv){const r=cv.getBoundingClientRect();return [(e.clientX-r.left)*cv.width/r.width,(e.clientY-r.top)*cv.height/r.height];}
-ci.addEventListener('click',e=>{if(camMode||pending||!im.naturalWidth)return;pending=pos(e,ci);upd();});
-cm.addEventListener('click',e=>{if(!scene)return;const v=mview(),[px,py]=pos(e,cm),w=[v.ix(px),v.iy(py)];
-  if(camMode){cam=w;camMode=false;upd();saveCalib();return;}
-  if(!pending){msg('Prima clicca un punto sul video.');return;}
-  imgPts.push(pending);worldPts.push(w);pending=null;msg('');
-  if(worldPts.length===4&&!cam){camMode=true;msg('4 punti pronti! Ora clicca sulla MAPPA dove sta l\'iPhone (camera).');}
-  upd();if(worldPts.length>=4&&cam)saveCalib();});
-document.getElementById('undo').onclick=()=>{if(pending)pending=null;else if(camMode)camMode=false;else{imgPts.pop();worldPts.pop();}upd();};
-document.getElementById('reset').onclick=()=>{imgPts=[];worldPts=[];pending=null;cam=null;camMode=false;msg('');upd();};
-document.getElementById('setcam').onclick=()=>{camMode=true;upd();};
-document.getElementById('ch').addEventListener('change',saveCalib);
-document.getElementById('refresh').onclick=()=>{im=new Image();im.onload=()=>{imgPts=[];worldPts=[];pending=null;upd();msg('Immagine aggiornata: i punti vanno rifatti.');};im.onerror=()=>{msg('Nessun frame ricevuto.');upd();};im.src='/snapshot.jpg?_='+Date.now();};
-document.getElementById('save').onclick=saveCalib;
-(async()=>{const qrc=document.getElementById('qrcard');document.getElementById('qrbtn').onclick=()=>{qrc.style.display=qrc.style.display==='block'?'none':'block';};qrc.onclick=()=>{qrc.style.display='none';};
-  try{const r=await fetch('/scene');scene=await r.json();document.getElementById('qru').textContent=scene.camera_url||'';
-    if(scene.cam){cam=scene.cam.xy;document.getElementById('ch').value=scene.cam.h;}}catch(e){msg('Planimetria non disponibile');}
-  im.onload=()=>{qrc.style.display='none';upd();};im.onerror=()=>{qrc.style.display='block';upd();};im.src='/snapshot.jpg?_='+Date.now();upd();})();
-</script></body></html>
+<header>
+  <span class="brand">ORACOLO // CALIBRAZIONE</span>
+  <b>Allineamento Camera-CAD 3D</b>
+  <span id="step">Passo 1: clicca uno spigolo sul fotogramma video...</span>
+  <div class="nav">
+    <button id="qrbtn" type="button">QR iPhone</button>
+    <button id="save" class="pri" type="button">Calcola e salva</button>
+    <a href="/room">Planimetria 3D</a>
+    <a href="/">Pannello Live</a>
+  </div>
+</header>
+<div id="qrcard"><b>Connetti Camera iPhone</b><img src="/qr.png" alt="QR Camera"><div class="u" id="qru"></div></div>
+<div id="msg">Seleziona almeno 4 coppie (consigliate 6+: terra Z=0 e cime mobili Z=H per posa 3D + distorsione lente).</div>
+<div id="toast"></div>
+<div id="cols">
+  <div class="box">
+    <div class="bar-sub">
+      <strong>1. Fotogramma Video (Punti 1..N)</strong>
+      <div class="tools">
+        <button id="refresh" type="button">Aggiorna immagine</button>
+        <button id="undo" type="button">Annulla ultimo</button>
+        <button id="reset" type="button">Ricomincia</button>
+      </div>
+    </div>
+    <div style="font-size:12px;color:#cbd5e1">Clicca gli spigoli sul video, trascina i cerchi per rifinire, o usa le frecce (Shift+frecce = 5px).</div>
+    <canvas id="img"></canvas>
+  </div>
+  <div class="box">
+    <div class="bar-sub">
+      <strong>2. Planimetria CAD (Snap automatico)</strong>
+      <div class="tools">
+        <label>Quota click <select id="zmode"><option value="floor">Pavimento (Z = 0 m)</option><option value="top">Cima ostacolo (Z = H)</option></select></label>
+        <label>Cam X <input id="cx" type="number" step="0.05" value="4.5" style="width:62px"></label>
+        <label>Y <input id="cy" type="number" step="0.05" value="1.1" style="width:62px"></label>
+        <label>Z <input id="ch" type="number" step="0.05" min="0.2" value="1.8" style="width:62px"></label>
+        <button id="setcam" type="button">Posiziona camera</button>
+      </div>
+    </div>
+    <div style="font-size:12px;color:#cbd5e1">Clicca vicino a uno spigolo sulla pianta (snap automatico azzurro; tieni Alt per punto libero).</div>
+    <canvas id="map"></canvas>
+  </div>
+</div>
+<div id="ptsbar">
+  <div class="bar-sub" style="padding-bottom:4px">
+    <strong>Coppie di Calibrazione (<span id="ptcnt">0</span>)</strong>
+    <div class="tools">
+      <label><input id="fitdist" type="checkbox" checked> Correggi distorsione lente (k1)</label>
+      <span id="fitinfo" style="font-size:12px;color:#93c5fd"></span>
+    </div>
+  </div>
+  <div id="ptslist"><span style="font-size:12px;color:#94a3b8">Nessun punto selezionato.</span></div>
+</div>
+<div class="hint">Consiglio per allineamento perfetto: aggiungi 6-8 punti ben distribuiti (sia a terra Z=0 sia sulle cime visibili di letto, scrivania, pianoforte o armadio). Con punti 3D la posizione della camera e la distorsione lente vengono stimate automaticamente.</div>
+<script src="/calibrate.js"></script>
+</body></html>

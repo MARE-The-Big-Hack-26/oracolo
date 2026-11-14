@@ -27,11 +27,28 @@ _PERIM = ("perimetro", "muri", "bounds", "perimeter")
 
 
 def _layer_height(name: str, default: float) -> float:
-    m = re.search(r"_H(\d+(?:[.,]\d+)?)", name, re.IGNORECASE)
-    if not m:
+    matches = re.findall(r"_H(\d+(?:[.,]\d+)?)", name, re.IGNORECASE)
+    if not matches:
         return default
-    v = float(m.group(1).replace(",", "."))
+    v = float(matches[-1].replace(",", "."))
     return v / 1000.0 if v >= 20 else v
+
+
+def _clean_poly(poly: Polygon) -> Polygon:
+    if not poly.is_valid or poly.area <= 0:
+        poly = poly.buffer(0)
+    if poly.geom_type in ("MultiPolygon", "GeometryCollection"):
+        polys = [g for g in poly.geoms if g.geom_type == "Polygon" and not g.is_empty and g.area > 0]
+        poly = max(polys, key=lambda g: g.area, default=Polygon())
+    return poly
+
+
+def _polyline_poly(spec_obj: dict, default_width: float = 0.15) -> Polygon:
+    pts = [(float(p[0]), float(p[1])) for p in spec_obj.get("points", [])]
+    width = float(spec_obj.get("width", default_width))
+    if len(pts) < 2 or width <= 0:
+        raise ValueError("Spezzata non valida (servono almeno 2 punti e width > 0)")
+    return _clean_poly(LineString(pts).buffer(width / 2.0, cap_style=2, join_style=2))
 
 
 def _poly_from_entity(e, k: float, wall_width: float = 0.10, lines_as_walls: bool = False):
@@ -58,8 +75,7 @@ def _poly_from_entity(e, k: float, wall_width: float = 0.10, lines_as_walls: boo
         return LineString(pts).buffer(wall_width / 2, cap_style=2) if lines_as_walls else None
     if len(pts) < 3:
         return None
-    poly = Polygon(pts)
-    return poly if poly.is_valid and poly.area > 0 else poly.buffer(0)
+    return _clean_poly(Polygon(pts))
 
 
 def load_dxf(path, unit: float | None = None, default_height: float = 3.0, ignore_layers=(), wall_width: float = 0.10,
@@ -95,9 +111,11 @@ def load_dxf(path, unit: float | None = None, default_height: float = 3.0, ignor
 
 
 def scene_from_spec(spec: dict) -> Scene:
-    """Costruisce una ``Scene`` da specifica JSON (perimetro/bounds + ostacoli con w, d, height)."""
+    """Costruisce una ``Scene`` da specifica JSON (perimetro/bounds/corridor + ostacoli)."""
     if "bounds" in spec and isinstance(spec["bounds"], (list, tuple)) and len(spec["bounds"]) >= 3:
         bounds = Polygon([(float(p[0]), float(p[1])) for p in spec["bounds"]])
+    elif "corridor" in spec and isinstance(spec["corridor"], dict):
+        bounds = _polyline_poly(spec["corridor"], default_width=1.8)
     elif "perimetro" in spec:
         x, y, w, d = (float(v) for v in spec["perimetro"])
         if w <= 0 or d <= 0:
@@ -105,8 +123,7 @@ def scene_from_spec(spec: dict) -> Scene:
         bounds = box(x, y, x + w, y + d)
     else:
         raise ValueError("Perimetro mancante")
-    if not bounds.is_valid:
-        bounds = bounds.buffer(0)
+    bounds = _clean_poly(bounds)
     if bounds.is_empty or bounds.area <= 0 or bounds.geom_type != "Polygon":
         raise ValueError("Perimetro non valido")
 
@@ -116,19 +133,22 @@ def scene_from_spec(spec: dict) -> Scene:
         height = float(o.get("height", o.get("altezza", 1.8)))
         if height <= 0:
             raise ValueError("L'altezza deve essere > 0")
-        if "w" in o and "d" in o:
+        ring = o.get("coords") if "coords" in o else o.get("polygon")
+        if isinstance(ring, (list, tuple)) and len(ring) >= 3:
+            poly = _clean_poly(Polygon([(float(p[0]), float(p[1])) for p in ring]))
+        elif isinstance(o.get("wall"), dict):
+            poly = _polyline_poly(o["wall"], default_width=0.15)
+        elif isinstance(o.get("points"), (list, tuple)):
+            poly = _polyline_poly(o, default_width=0.15)
+        elif "w" in o and "d" in o:
             x, y, w, d = float(o.get("x", 0.0)), float(o.get("y", 0.0)), float(o["w"]), float(o["d"])
             if w <= 0 or d <= 0:
                 raise ValueError("Larghezza e lunghezza devono essere > 0")
             poly = box(x, y, x + w, y + d)
-        elif "coords" in o and len(o["coords"]) >= 3:
-            poly = Polygon([(float(p[0]), float(p[1])) for p in o["coords"]])
-            if not poly.is_valid:
-                poly = poly.buffer(0)
-            if poly.is_empty or poly.area <= 0:
-                raise ValueError("Ostacolo non valido")
         else:
             raise ValueError("Ostacolo senza dimensioni valide")
+        if poly.is_empty or poly.area <= 0 or poly.geom_type != "Polygon":
+            raise ValueError("Ostacolo non valido")
         occluders.append(Occluder(name, poly, height))
     return Scene(bounds, occluders)
 
@@ -142,7 +162,9 @@ def save_dxf(scene: Scene, path) -> None:
         doc.layers.add("PERIMETRO")
     msp.add_lwpolyline(list(scene.bounds.exterior.coords)[:-1], close=True, dxfattribs={"layer": "PERIMETRO"})
     for o in scene.occluders:
-        base = re.sub(r"[^A-Za-z0-9]+", "_", re.sub(r"#\d+$", "", o.name)).strip("_").upper() or "OSTACOLO"
+        raw = re.sub(r"#\d+$", "", o.name)
+        raw = re.sub(r"(?:_H\d+(?:[.,_]\d+)?)+$", "", raw, flags=re.IGNORECASE)
+        base = re.sub(r"[^A-Za-z0-9]+", "_", raw).strip("_").upper() or "OSTACOLO"
         layer = f"{base}_H{float(o.height):.2f}"
         if layer not in doc.layers:
             doc.layers.add(layer)

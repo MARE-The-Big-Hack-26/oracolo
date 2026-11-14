@@ -9,6 +9,7 @@ import pytest
 cv2 = pytest.importorskip("cv2")
 
 from oracolo.cad import load_dxf  # noqa: E402
+from oracolo.vision.calib import Calibration  # noqa: E402
 from oracolo.vision.certs import ensure_cert  # noqa: E402
 from oracolo.vision.detectors import NoPersonDetector  # noqa: E402
 from oracolo.vision.pipeline import LivePipeline  # noqa: E402
@@ -81,7 +82,7 @@ def test_calibrazione_non_valida(live):
 def test_https_con_certificato_autofirmato(tmp_path):
     dxf = Path(__file__).resolve().parent.parent / "scenarios" / "stanza.dxf"
     scene, _ = load_dxf(dxf)
-    app = LiveApp(LivePipeline(scene, None), tmp_path / "c.json")
+    app = LiveApp(LivePipeline(scene, None, person_detector=NoPersonDetector()), tmp_path / "c.json")
     cert, key = ensure_cert(tmp_path / "certs")
     httpd = serve(app, "127.0.0.1", 0, cert, key)
     try:
@@ -95,6 +96,24 @@ def test_https_con_certificato_autofirmato(tmp_path):
         httpd.shutdown()
 
 
+def test_http_e_https_sulla_stessa_porta(tmp_path):
+    dxf = Path(__file__).resolve().parent.parent / "scenarios" / "stanza.dxf"
+    scene, _ = load_dxf(dxf)
+    app = LiveApp(LivePipeline(scene, None, person_detector=NoPersonDetector()), tmp_path / "c.json")
+    cert, key = ensure_cert(tmp_path / "certs")
+    httpd = serve(app, "127.0.0.1", 0, cert, key)
+    port = httpd.server_address[1]
+    try:
+        assert b"getUserMedia" in _req(f"http://127.0.0.1:{port}/camera").read()
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+        assert b"getUserMedia" in _req(f"https://127.0.0.1:{port}/camera", ctx=ctx).read()
+    finally:
+        app.running = False
+        httpd.shutdown()
+
+
 def test_frame_fermi_comando_di_arresto(live):
     app, base = live
     app.stale_after = 0.4
@@ -102,11 +121,14 @@ def test_frame_fermi_comando_di_arresto(live):
     body = json.dumps({"img": img, "world": world, "image_size": [synth.W, synth.H], "cam_xy": [2.5, -0.6], "cam_h": 2.2}).encode()
     _req(base + "/calib", body)
     frame = synth.render_frame((2.5, 1.2, 1.5708))
-    for _ in range(10):
-        _req(base + "/frame", _jpeg(frame))
-        time.sleep(0.1)
-    st = json.loads(_req(base + "/state").read())
-    assert not st.get("stale")
+    _req(base + "/frame", _jpeg(frame))
+    st = {}
+    for _ in range(50):
+        time.sleep(0.05)
+        st = json.loads(_req(base + "/state").read())
+        if st.get("calibrated"):
+            break
+    assert st.get("calibrated") and not st.get("stale")
     time.sleep(0.8)  # l'iPhone smette di inviare
     st = json.loads(_req(base + "/state").read())
     assert st["stale"] and st["decision"]["level"] == 3 and st["decision"]["cause"] == "affidabilita_persa"
@@ -117,7 +139,7 @@ def test_https_connessione_muta_non_blocca_il_server(tmp_path):
     import socket
     dxf = Path(__file__).resolve().parent.parent / "scenarios" / "stanza.dxf"
     scene, _ = load_dxf(dxf)
-    app = LiveApp(LivePipeline(scene, None), tmp_path / "c.json")
+    app = LiveApp(LivePipeline(scene, None, person_detector=NoPersonDetector()), tmp_path / "c.json")
     cert, key = ensure_cert(tmp_path / "certs")
     httpd = serve(app, "127.0.0.1", 0, cert, key)
     port = httpd.server_address[1]
@@ -166,3 +188,99 @@ def test_editor_planimetria_e_ostacoli(tmp_path):
     finally:
         app.running = False
         httpd.shutdown()
+
+
+def test_editor_camera_e_anteprima_calibrazione(tmp_path):
+    dxf_out = tmp_path / "stanza.dxf"
+    calib_out = tmp_path / "calib.json"
+    dxf_init = Path(__file__).resolve().parent.parent / "scenarios" / "stanza.dxf"
+    scene, _ = load_dxf(dxf_init)
+    app = LiveApp(LivePipeline(scene, None, person_detector=NoPersonDetector()), calib_out, dxf_path=dxf_out)
+    httpd = serve(app, "127.0.0.1", 0)
+    base = f"http://127.0.0.1:{httpd.server_address[1]}"
+    try:
+        payload = {
+            "bounds": [[0.0, 0.0], [5.0, 0.0], [5.0, 4.0], [0.0, 4.0]],
+            "obstacles": [{"name": "scaffale", "x": 1.0, "y": 1.5, "w": 0.5, "d": 1.2, "height": 1.6}],
+            "cam": {"xy": [4.2, 0.5], "h": 2.05},
+        }
+        assert json.loads(_req(base + "/scene", json.dumps(payload).encode()).read())["ok"]
+        sc = json.loads(_req(base + "/scene").read())
+        assert sc["cam"]["xy"] == pytest.approx([4.2, 0.5]) and sc["cam"]["h"] == pytest.approx(2.05)
+
+        img, world = synth.floor_pairs()
+        cal_res = json.loads(_req(base + "/calib", json.dumps({
+            "img": img, "world": world, "image_size": [synth.W, synth.H], "cam_xy": [2.5, -0.6], "cam_h": 2.2,
+        }).encode()).read())
+        assert cal_res["ok"] and "bounds" in cal_res["overlay"] and len(cal_res["overlay"]["occluders"]) == 1
+        sc2 = json.loads(_req(base + "/scene").read())
+        assert len(sc2["calib"]["img_pts"]) == 4 and "overlay" in sc2["calib"]
+
+        assert json.loads(_req(base + "/scene", json.dumps(payload).encode()).read())["ok"]
+        reloaded_cal = Calibration.load(calib_out)
+        assert reloaded_cal.cam_xy == pytest.approx((4.2, 0.5)) and reloaded_cal.cam_h == pytest.approx(2.05)
+    finally:
+        app.running = False
+        httpd.shutdown()
+
+
+def test_stanza_irregolare_corridoio_e_forme(tmp_path):
+    from shapely.geometry import Point
+    dxf_out = tmp_path / "stanza_irregolare.dxf"
+    dxf_init = Path(__file__).resolve().parent.parent / "scenarios" / "stanza.dxf"
+    scene, _ = load_dxf(dxf_init)
+    pipe = LivePipeline(scene, None, person_detector=NoPersonDetector())
+    app = LiveApp(pipe, tmp_path / "calib.json", dxf_path=dxf_out)
+    httpd = serve(app, "127.0.0.1", 0)
+    base = f"http://127.0.0.1:{httpd.server_address[1]}"
+    try:
+        l_room = [[0.0, 0.0], [6.0, 0.0], [6.0, 2.0], [2.0, 2.0], [2.0, 6.0], [0.0, 6.0]]
+        payload = {
+            "bounds": l_room,
+            "obstacles": [
+                {"name": "triangolo", "coords": [[0.4, 0.4], [1.4, 0.4], [0.9, 1.3]], "height": 1.2},
+                {"name": "scaffale_L", "coords": [[2.5, 0.3], [4.5, 0.3], [4.5, 0.8], [3.0, 0.8], [3.0, 1.6], [2.5, 1.6]], "height": 1.9},
+                {"name": "muro_obliquo", "coords": [[0.3, 3.0], [1.6, 4.3], [1.5, 4.4], [0.2, 3.1]], "height": 2.2},
+            ],
+            "cam": {"xy": [5.0, 5.0], "h": 2.1},
+        }
+        res = json.loads(_req(base + "/scene", json.dumps(payload).encode()).read())
+        assert res["ok"] and res["occluders"] == 3 and res["bounds_m"] == [0.0, 0.0, 6.0, 6.0]
+        sc = json.loads(_req(base + "/scene").read())
+        assert len(sc["bounds"]) == 7
+        assert len(sc["occluders"][1]["coords"]) == 7
+
+        img, world = synth.floor_pairs()
+        cal_res = json.loads(_req(base + "/calib", json.dumps({
+            "img": img, "world": world, "image_size": [synth.W, synth.H], "cam_xy": [5.0, 5.0], "cam_h": 2.2,
+        }).encode()).read())
+        assert cal_res["ok"]
+        assert pipe.scene.bounds.contains(Point(pipe.cam_xy))
+        assert pipe.vis_poly is not None and not pipe.vis_poly.is_empty
+
+        corr_res = json.loads(_req(base + "/scene", json.dumps({
+            "corridor": {"points": [[0.0, 1.0], [5.0, 1.0], [5.0, 5.0]], "width": 1.6},
+            "obstacles": [],
+        }).encode()).read())
+        assert corr_res["ok"] and corr_res["occluders"] == 0
+    finally:
+        app.running = False
+        httpd.shutdown()
+
+
+def test_camera_move_updates_shadows_fov_and_fog(live):
+    _, base = live
+    base_scene = {"bounds": [[0.0, 0.0], [6.0, 0.0], [6.0, 4.0], [0.0, 4.0]],
+                  "obstacles": [{"name": "scrivania", "x": 2.5, "y": 1.5, "w": 1.0, "d": 1.0, "height": 0.77}]}
+    r1 = json.loads(_req(base + "/scene", json.dumps({**base_scene, "cam": {"xy": [1.0, 2.0], "h": 1.8}}).encode()).read())
+    st1 = json.loads(_req(base + "/state").read())
+    r2 = json.loads(_req(base + "/scene", json.dumps({**base_scene, "cam": {"xy": [5.0, 2.0], "h": 0.9}}).encode()).read())
+    st2 = json.loads(_req(base + "/state").read())
+    assert r1["shadows"] and r2["shadows"] and r1["shadows"] != r2["shadows"]
+    assert r1["fov"] != r2["fov"] and st1["fog"]["b64"] != st2["fog"]["b64"]
+    r3 = json.loads(_req(base + "/scene", json.dumps({**base_scene, "cam": {"xy": [1.5, 2.0], "h": 1.8, "dir": 0, "fov": 75}}).encode()).read())
+    st3 = json.loads(_req(base + "/state").read())
+    r4 = json.loads(_req(base + "/scene", json.dumps({**base_scene, "cam": {"xy": [1.5, 2.0], "h": 1.8, "dir": 180, "fov": 75}}).encode()).read())
+    st4 = json.loads(_req(base + "/state").read())
+    assert r3["shadows"] and not r4["shadows"]
+    assert r3["fov"] != r4["fov"] and st3["fog"]["b64"] != st4["fog"]["b64"]

@@ -1,7 +1,7 @@
 import ezdxf
 import pytest
 
-from oracolo.cad import _layer_height, load_dxf
+from oracolo.cad import _layer_height, load_dxf, save_dxf, scene_from_spec
 
 
 def make_dxf(path, insunits=4, k=1000):
@@ -44,3 +44,33 @@ def test_load_dxf_meters_and_default_bounds(tmp_path):
     make_dxf(str(p), insunits=6, k=1)
     scene, _ = load_dxf(str(p), ignore_layers=["QUOTE", "PERIMETRO"])
     assert scene.bounds.contains(scene.occluders[0].poly)  # perimetro dedotto dagli ostacoli
+
+
+def test_scene_from_spec_irregolare_corridoio_e_roundtrip_dxf(tmp_path):
+    l_bounds = [[0, 0], [6, 0], [6, 2], [2, 2], [2, 6], [0, 6]]
+    l_obs = [[0.4, 0.4], [1.6, 0.4], [1.6, 0.8], [0.8, 0.8], [0.8, 1.6], [0.4, 1.6]]
+    tri = [[3.0, 0.3], [4.2, 0.3], [3.6, 1.4]]
+    sc = scene_from_spec({
+        "bounds": l_bounds,
+        "obstacles": [
+            {"name": "scaffale_L", "coords": l_obs, "height": 1.9},
+            {"name": "pilastro", "polygon": tri, "height": 2.4},
+            {"name": "divisorio", "wall": {"points": [[0.5, 3.0], [1.5, 4.5]], "width": 0.2}, "height": 2.1},
+        ],
+    })
+    assert sc.bounds.area == pytest.approx(20.0)
+    assert len(sc.bounds.exterior.coords) == 7
+    assert len(sc.occluders) == 3
+    assert sc.occluders[0].poly.area == pytest.approx(0.8)
+    assert len(sc.occluders[0].poly.exterior.coords) == 7
+
+    dxf = tmp_path / "l_room.dxf"
+    save_dxf(sc, dxf)
+    reloaded, _ = load_dxf(dxf)
+    assert reloaded.bounds.area == pytest.approx(sc.bounds.area)
+    assert len(reloaded.bounds.exterior.coords) == len(sc.bounds.exterior.coords)
+    assert sorted(round(o.poly.area, 3) for o in reloaded.occluders) == sorted(round(o.poly.area, 3) for o in sc.occluders)
+
+    corridor = scene_from_spec({"corridor": {"points": [[0, 0], [4, 0], [4, 4]], "width": 2.0}})
+    assert corridor.bounds.area == pytest.approx(16.0)
+    assert len(corridor.bounds.exterior.coords) == 7

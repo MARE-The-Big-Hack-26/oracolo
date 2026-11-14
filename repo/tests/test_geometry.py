@@ -8,6 +8,8 @@ from oracolo.geometry import (
     classify_pair,
     line_of_sight,
     mutual_visibility,
+    obstacle_shadow,
+    scene_shadows,
     visibility_polygon,
     visible_distance_along,
 )
@@ -84,3 +86,31 @@ def test_junction_has_hidden_crossing_aisle():
     vis = visibility_polygon((1.0, 1.75), sc, eye_h=2.5, target_h=1.0)
     assert vis.covers(Point(15, 1.75))
     assert not vis.covers(Point(11, 9))
+
+
+def test_low_obstacle_shadow_changes_with_camera_height_and_position():
+    desk = Occluder("scrivania", box(4.0, 2.0, 5.0, 4.0), 0.77)
+    sc = Scene(box(0, 0, 10, 6), [desk])
+    sh_high = obstacle_shadow((2.0, 3.0), desk, eye_h=1.8, target_h=0.0)
+    sh_low = obstacle_shadow((2.0, 3.0), desk, eye_h=0.9, target_h=0.0)
+    assert sh_high.area > 0 and sh_low.area > sh_high.area * 3
+    vis_high = visibility_polygon((2.0, 3.0), sc, eye_h=1.8, target_h=0.0)
+    vis_low = visibility_polygon((2.0, 3.0), sc, eye_h=0.9, target_h=0.0)
+    assert not vis_high.covers(Point(5.5, 3.0)) and vis_high.covers(Point(8.5, 3.0))
+    assert not vis_low.covers(Point(8.5, 3.0))
+    # spostando la camera dall'altro lato della scrivania, la zona d'ombra ruota
+    vis_other = visibility_polygon((7.0, 3.0), sc, eye_h=0.9, target_h=0.0)
+    assert vis_other.covers(Point(8.5, 3.0)) and not vis_other.covers(Point(2.5, 3.0))
+    assert len(scene_shadows((2.0, 3.0), sc, eye_h=1.8, target_h=0.0)) >= 1
+
+
+def test_directional_iphone_camera_shadows_and_fov():
+    front = Occluder("davanti", box(6.0, 2.5, 7.0, 3.5), 1.0)
+    back = Occluder("dietro", box(1.0, 2.5, 2.0, 3.5), 1.0)
+    sc = Scene(box(0, 0, 10, 6), [front, back])
+    hf = np.deg2rad(37.5)
+    sh_fwd = scene_shadows((4.0, 3.0), sc, eye_h=1.8, target_h=0.0, heading=0.0, half_fov=hf)
+    sh_bwd = scene_shadows((4.0, 3.0), sc, eye_h=1.8, target_h=0.0, heading=np.pi, half_fov=hf)
+    assert sh_fwd and sh_bwd and sh_fwd != sh_bwd
+    assert all(min(x for x, _ in ring) >= 5.5 for ring in sh_fwd)
+    assert all(max(x for x, _ in ring) <= 2.5 for ring in sh_bwd)

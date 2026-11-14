@@ -13,6 +13,7 @@ Le licenze sotto sono quelle note al momento della stesura: ricontrollare sul si
 | pytest | test | MIT | |
 | opencv-python-headless | omografia, ArUco, HOG persone, JPEG | Apache-2.0 (4.5+) | |
 | cryptography | certificato HTTPS autofirmato | Apache-2.0 / BSD | |
+| cloudflared (opzionale, scaricato on-demand) | tunnel HTTPS pubblico per dispositivi mobili senza avvisi certificato | Apache-2.0 | |
 | supervision (opzionale) | tracking/annotazioni | MIT | |
 | RF-DETR (opzionale) | rilevatore persone (`--detector rfdetr:nano`) | Apache-2.0 | |
 | Ultralytics YOLO11 / YOLO11-Pose (opzionale) | rilevatore persone e caviglie (`--detector yolo:pose`) | AGPL-3.0 | |

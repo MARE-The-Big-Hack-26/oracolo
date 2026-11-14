@@ -12,10 +12,8 @@ Solo libreria standard (+ OpenCV, NumPy già in uso).
 from __future__ import annotations
 
 import json
-import ssl
 import threading
 import time
-from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 import cv2
@@ -24,47 +22,38 @@ import numpy as np
 from ..cab import CAUSE_IT
 from ..cad import save_dxf, scene_from_spec
 from .calib import Calibration
+from .certs import build_ssl_context
+from .http_handler import WEB, QuietServer, make_handler
 from .pipeline import json_state
-from .viz import draw_overlay
-
-WEB = Path(__file__).parent / "web"
+from .viz import draw_overlay, overlay_polys
 
 
 class LiveApp:
     def __init__(self, pipeline, calib_path="calib.json", jpeg_quality: int = 70, max_width: int = 960,
-                 stale_after: float = 0.6, dxf_path=None):
-        self.pipe = pipeline
-        self.calib_path = Path(calib_path)
+                 stale_after: float = 1.5, dxf_path=None):
+        self.pipe, self.calib_path = pipeline, Path(calib_path)
         self.dxf_path = Path(dxf_path) if dxf_path else None
-        self.q, self.max_width = jpeg_quality, max_width
-        self.cond = threading.Condition()
-        self._raw = None  # (t_recv, jpeg bytes | ndarray)
-        self._raw_ver = 0
-        self.snapshot = b""
-        self.annot = b""
-        self.annot_ver = 0
+        self.q, self.max_width, self.stale_after = jpeg_quality, max_width, stale_after
+        self.cond, self.lock_pipe = threading.Condition(), threading.Lock()
+        self._raw, self._raw_ver, self.last_done = None, 0, None
+        self.snapshot, self.annot, self.annot_ver = b"", b"", 0
         self.state_obj = {"calibrated": False}
-        self.last_done = None
-        self.stale_after = stale_after  # s senza frame nuovi -> arresto (fail-safe)
-        self.fps = 0.0
-        self.latency = 0.0
-        self.running = True
-        self.n_frames = 0
-        self.lock_pipe = threading.Lock()
-        self.last_error = ""
+        self.fps, self.latency, self.n_frames, self.running = 0.0, 0.0, 0, True
+        self.last_error, self.camera_url = "", ""
+        with self.lock_pipe:
+            self._sync_state_from_scene()
+        self._qr_cache: tuple[str | None, bytes] = (None, b"")
 
     # ---- ingresso frame ------------------------------------------------------------------
     def push_jpeg(self, data: bytes) -> None:
-        with self.cond:
-            self._raw = (time.monotonic(), data)
-            self._raw_ver += 1
-            self.snapshot = data
-            self.cond.notify_all()
+        self.push_frame(data)
 
     def push_frame(self, frame) -> None:
         with self.cond:
             self._raw = (time.monotonic(), frame)
             self._raw_ver += 1
+            if isinstance(frame, (bytes, bytearray)):
+                self.snapshot = frame
             self.cond.notify_all()
 
     # ---- elaborazione --------------------------------------------------------------------
@@ -97,16 +86,21 @@ class LiveApp:
                 self.n_frames += 1
                 state["fps"] = round(self.fps, 1)
                 state["latency"] = round(self.latency, 3)
-                ok, buf = cv2.imencode(".jpg", img, [cv2.IMWRITE_JPEG_QUALITY, self.q])
-                with self.cond:
-                    self.state_obj = json_state(state)
-                    self.last_done = time.monotonic()
-                    if ok:
-                        self.annot = buf.tobytes()
-                        self.annot_ver += 1
-                    self.cond.notify_all()
+                self._set_annot(img, state)
             except Exception as e:  # noqa: BLE001 (un frame difettoso non deve fermare il server)
                 self.last_error = repr(e)
+
+    def _set_annot(self, img, state: dict | None = None) -> None:
+        ok, buf = cv2.imencode(".jpg", img, [cv2.IMWRITE_JPEG_QUALITY, self.q])
+        with self.cond:
+            if state is not None:
+                self.state_obj = json_state(state)
+                self.last_done = time.monotonic()
+            if ok:
+                self.annot = buf.tobytes()
+                self.annot_ver += 1
+            if ok or state is not None:
+                self.cond.notify_all()
 
     def current_state(self) -> bytes:
         """Stato per la UI. Se i frame smettono di arrivare il comando diventa FERMA (come il watchdog della macchina)."""
@@ -119,143 +113,86 @@ class LiveApp:
                               "cause_it": CAUSE_IT["affidabilita_persa"]}
         return json.dumps(st).encode()
 
+    def qr_png(self, fallback: str = "") -> bytes:
+        url = self.camera_url or fallback
+        if self._qr_cache[0] != url:
+            qr = cv2.QRCodeEncoder.create().encode(url or "/camera")
+            padded = cv2.copyMakeBorder(qr, 2, 2, 2, 2, cv2.BORDER_CONSTANT, value=255)
+            img = cv2.resize(padded, (0, 0), fx=8, fy=8, interpolation=cv2.INTER_NEAREST)
+            ok, buf = cv2.imencode(".png", img)
+            self._qr_cache = (url, buf.tobytes() if ok else b"")
+        return self._qr_cache[1]
+
+    def _sync_state_from_scene(self) -> None:
+        _, fog_dict = self.pipe.fog_payload()
+        with self.cond:
+            self.state_obj = {**self.state_obj, "version": self.pipe.version, "calibrated": self.pipe.calib is not None, "fog": fog_dict}
+            if self._raw is not None:
+                self._raw_ver += 1
+            self.cond.notify_all()
+
+    def _refresh_annot(self) -> None:
+        raw = self.snapshot
+        if not raw:
+            return
+        frame = cv2.imdecode(np.frombuffer(raw, np.uint8), cv2.IMREAD_COLOR)
+        if frame is None:
+            return
+        with self.lock_pipe:
+            st = {**self.state_obj, "_fog": self.pipe.fog_payload()[0]}
+            img = draw_overlay(frame, self.pipe.calib, self.pipe.scene, st, self.max_width)
+        self._set_annot(img)
+
     # ---- calibrazione --------------------------------------------------------------------
     def apply_calibration(self, body: dict) -> dict:
-        cal = Calibration.from_pairs(body["img"], body["world"], body["image_size"], body["cam_xy"], body["cam_h"])
+        cam_xy = body["cam_xy"] if body.get("cam_xy") is not None else self.pipe.cam_spec["xy"]
+        cam_h = body["cam_h"] if body.get("cam_h") is not None else self.pipe.cam_spec["h"]
+        cal = Calibration.from_pairs(
+            body["img"], body["world"], body["image_size"], cam_xy, cam_h,
+            fit_distortion=bool(body.get("fit_distortion", True)),
+            auto_cam=bool(body.get("auto_cam", False)),
+        )
+        if body.get("cam_dir") is not None:
+            cal.cam_dir = float(body["cam_dir"])
+        if body.get("cam_fov") is not None:
+            cal.cam_fov = float(body["cam_fov"])
         cal.save(self.calib_path)
         with self.lock_pipe:
             self.pipe.set_calibration(cal)
-        return {"ok": True, "rms_m": round(cal.rms_m, 3)}
+            fov = self.pipe.scene_info()["fov"]
+            overlay = overlay_polys(cal, self.pipe.scene)
+            self._sync_state_from_scene()
+        self._refresh_annot()
+        return {
+            "ok": True, "rms_m": round(cal.rms_m, 3), "rms_px": round(cal.rms_px, 2),
+            "point_errors_px": cal.point_errors_px, "cam_xy": [round(v, 3) for v in cal.cam_xy],
+            "cam_h": round(cal.cam_h, 3), "k1": round(cal.k1, 4), "fov_deg": cal.fov_deg(),
+            "overlay": overlay, "fov": fov,
+        }
 
     def apply_scene(self, body: dict) -> dict:
         scene = scene_from_spec(body)
         if self.dxf_path is not None:
             save_dxf(scene, self.dxf_path)
+        cam = body.get("cam")
         with self.lock_pipe:
             self.pipe.set_scene(scene)
-        return {"ok": True, "occluders": len(scene.occluders), "bounds_m": [round(v, 3) for v in scene.bounds.bounds]}
-
-
-def _qr_png(text: str) -> bytes:
-    qr = cv2.QRCodeEncoder.create().encode(text or "/camera")
-    padded = cv2.copyMakeBorder(qr, 2, 2, 2, 2, cv2.BORDER_CONSTANT, value=255)
-    img = cv2.resize(padded, (0, 0), fx=8, fy=8, interpolation=cv2.INTER_NEAREST)
-    ok, buf = cv2.imencode(".png", img)
-    return buf.tobytes() if ok else b""
-
-
-def make_handler(app: LiveApp, camera_url: str):
-    qr_bytes = _qr_png(camera_url)
-
-    class H(BaseHTTPRequestHandler):
-        protocol_version = "HTTP/1.1"
-
-        def setup(self):  # handshake TLS nel thread della connessione, non nel ciclo accept()
-            if isinstance(self.request, ssl.SSLSocket):
-                self.request.settimeout(10)
-                self.request.do_handshake()
-                self.request.settimeout(None)
-            super().setup()
-
-        def log_message(self, *a):  # silenzio
-            pass
-
-        def _send(self, code, body: bytes, ctype="text/plain; charset=utf-8", extra=None):
-            self.send_response(code)
-            self.send_header("Content-Type", ctype)
-            self.send_header("Content-Length", str(len(body)))
-            self.send_header("Cache-Control", "no-store")
-            for k, v in (extra or {}).items():
-                self.send_header(k, v)
-            self.end_headers()
-            self.wfile.write(body)
-
-        def _page(self, name):
-            self._send(200, (WEB / name).read_bytes(), "text/html; charset=utf-8")
-
-        def do_GET(self):  # noqa: N802
-            path = self.path.split("?", 1)[0]
-            if path in ("/", "/panel"):
-                return self._page("panel.html")
-            if path == "/camera":
-                return self._page("camera.html")
-            if path == "/calibrate":
-                return self._page("calibrate.html")
-            if path == "/room":
-                return self._page("room.html")
-            if path == "/room.js":
-                return self._send(200, (WEB / "room.js").read_bytes(), "application/javascript; charset=utf-8")
-            if path == "/state":
-                return self._send(200, app.current_state(), "application/json")
-            if path == "/scene":
-                info = app.pipe.scene_info()
-                info["camera_url"] = camera_url
-                return self._send(200, json.dumps(info).encode(), "application/json")
-            if path == "/qr.png":
-                return self._send(200, qr_bytes, "image/png")
-            if path == "/snapshot.jpg":
-                if not app.snapshot:
-                    return self._send(404, b"nessun frame ricevuto")
-                return self._send(200, app.snapshot, "image/jpeg")
-            if path == "/video.mjpg":
-                return self._mjpeg()
-            return self._send(404, b"non trovato")
-
-        def _mjpeg(self):
-            self.send_response(200)
-            self.send_header("Content-Type", "multipart/x-mixed-replace; boundary=frame")
-            self.send_header("Cache-Control", "no-store")
-            self.end_headers()
-            ver = 0
-            try:
-                while app.running:
-                    with app.cond:
-                        app.cond.wait_for(lambda: app.annot_ver != ver, timeout=2.0)
-                        if app.annot_ver == ver:
-                            continue
-                        ver, jpg = app.annot_ver, app.annot
-                    self.wfile.write(b"--frame\r\nContent-Type: image/jpeg\r\nContent-Length: %d\r\n\r\n" % len(jpg))
-                    self.wfile.write(jpg + b"\r\n")
-            except (BrokenPipeError, ConnectionResetError, ssl.SSLError):
-                pass
-
-        def do_POST(self):  # noqa: N802
-            n = int(self.headers.get("Content-Length", "0"))
-            body = self.rfile.read(n) if n else b""
-            if self.path == "/frame":
-                app.push_jpeg(body)
-                return self._send(204, b"")
-            if self.path == "/calib":
-                try:
-                    out = app.apply_calibration(json.loads(body))
-                    return self._send(200, json.dumps(out).encode(), "application/json")
-                except (ValueError, KeyError, cv2.error) as e:
-                    return self._send(400, json.dumps({"ok": False, "error": str(e)}).encode(), "application/json")
-            if self.path == "/scene":
-                try:
-                    out = app.apply_scene(json.loads(body))
-                    return self._send(200, json.dumps(out).encode(), "application/json")
-                except (ValueError, KeyError) as e:
-                    return self._send(400, json.dumps({"ok": False, "error": str(e)}).encode(), "application/json")
-            return self._send(404, b"non trovato")
-
-    return H
-
-
-class QuietServer(ThreadingHTTPServer):
-    daemon_threads = True
-    allow_reuse_address = True
-
-    def handle_error(self, request, client_address):  # handshake TLS rifiutati ecc.: nessun rumore
-        pass
+            if isinstance(cam, dict) and "xy" in cam and "h" in cam:
+                self.pipe.set_cam_spec(cam["xy"], cam["h"], cam.get("dir"), cam.get("fov"))
+                if self.pipe.calib is not None:
+                    self.pipe.calib.save(self.calib_path)
+            info = self.pipe.scene_info()
+            self._sync_state_from_scene()
+        self._refresh_annot()
+        return {"ok": True, "occluders": len(scene.occluders), "bounds_m": [round(v, 3) for v in scene.bounds.bounds],
+                "fov": info["fov"], "shadows": info["shadows"]}
 
 
 def serve(app: LiveApp, host="0.0.0.0", port=8443, certfile=None, keyfile=None, camera_url="") -> QuietServer:
-    httpd = QuietServer((host, port), make_handler(app, camera_url))
-    if certfile:
-        ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
-        ctx.load_cert_chain(certfile, keyfile)
-        httpd.socket = ctx.wrap_socket(httpd.socket, server_side=True, do_handshake_on_connect=False)
+    if camera_url:
+        app.camera_url = camera_url
+    ctx = build_ssl_context(certfile, keyfile)
+    httpd = QuietServer((host, port), make_handler(app, camera_url, ssl_ctx=ctx))
     threading.Thread(target=httpd.serve_forever, daemon=True).start()
     threading.Thread(target=app.worker, daemon=True).start()
     return httpd

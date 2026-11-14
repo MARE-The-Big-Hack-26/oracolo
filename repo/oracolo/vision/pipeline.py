@@ -22,10 +22,11 @@ from shapely.geometry import Point
 
 from ..cab import CAUSE_IT
 from ..engine import Oracle
-from ..geometry import visibility_polygon
+from ..geometry import scene_shadows, visibility_polygon
 from ..policy import LEVEL_NAMES, PedParams, VehicleParams
 from .detectors import MarkerDetector, NoPersonDetector
 from .tracker import PersonTracker, VehicleTracker
+from .viz import overlay_polys
 
 
 def frame_health(frame) -> float:
@@ -33,12 +34,8 @@ def frame_health(frame) -> float:
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY) if frame.ndim == 3 else frame
     mean = float(gray.mean())
     lap = float(cv2.Laplacian(gray, cv2.CV_64F).var())
-    h = 1.0
-    if mean < 25 or mean > 245:
-        h = 0.4
-    if lap < 2.0:
-        h = min(h, 0.5)
-    return h
+    h = 0.4 if (mean < 25 or mean > 245) else 1.0
+    return min(h, 0.5) if lap < 2.0 else h
 
 
 class LivePipeline:
@@ -58,13 +55,44 @@ class LivePipeline:
         self.violations = 0
         self._over_since = None
         self._flag = False
+        self._custom_cone = False
+        self.cam_spec = {"xy": [4.5, 1.1], "h": 1.8, "dir": self._default_dir((4.5, 1.1)), "fov": 75.0}
         self.set_calibration(calib)
 
     # ---- calibrazione --------------------------------------------------------------------
+    def _default_dir(self, xy) -> float:
+        c = self.scene.bounds.centroid
+        return round(math.degrees(math.atan2(c.y - xy[1], c.x - xy[0])), 1)
+
+    def _cone_rad(self) -> tuple[float, float]:
+        return math.radians(float(self.cam_spec.get("dir", 0.0))), math.radians(float(self.cam_spec.get("fov", 75.0))) / 2.0
+
     def set_scene(self, scene) -> None:
         self.scene = scene
         self._walkable = scene.walkable()
         self.set_calibration(self.calib)
+
+    def _refresh_visibility(self) -> None:
+        raw_xy = self.calib.cam_xy if self.calib is not None else self.cam_spec["xy"]
+        cam_h = float(self.calib.cam_h if self.calib is not None else self.cam_spec["h"])
+        self.cam_xy = self._inside(raw_xy)
+        if not self._custom_cone and self.calib is None:
+            self.cam_spec["dir"] = self._default_dir(self.cam_xy)
+        heading, half_fov = self._cone_rad()
+        if self.calib is not None and not self._custom_cone:
+            vis = visibility_polygon(self.cam_xy, self.scene, eye_h=cam_h, target_h=0.0)
+            inter = vis.intersection(self.calib.footprint(self.scene.bounds))
+            if not inter.is_empty and (inter.covers(Point(self.cam_xy)) or inter.area > 0.5):
+                vis = inter
+        else:
+            vis = visibility_polygon(self.cam_xy, self.scene, eye_h=cam_h, target_h=0.0, heading=heading, half_fov=half_fov)
+        self.vis_poly = vis
+        self.vis_mask = self.oracle.fog.mask_from_poly(self.vis_poly)
+        prev_t = self.oracle.fog.t_prev
+        self.oracle.fog.observe(0.0 if prev_t is None else prev_t, self.vis_mask, {})
+        if prev_t is None:
+            self.oracle.fog.t_prev = None
+            self.oracle.fog.last_seen[self.oracle.fog.visible] = -np.inf
 
     def set_calibration(self, calib) -> None:
         self.calib = calib
@@ -72,24 +100,47 @@ class LivePipeline:
         self.oracle = Oracle(self.scene, self.p, self.pp, use_fog=self.use_fog)
         self.ptrack, self.vtrack = PersonTracker(), VehicleTracker()
         self.violations, self._over_since, self._flag = 0, None, False
-        self.vis_poly, self.vis_mask, self.cam_xy = None, None, None
         if calib is not None:
-            self.cam_xy = self._inside(calib.cam_xy)
-            vis = visibility_polygon(self.cam_xy, self.scene, eye_h=calib.cam_h, target_h=1.0)
-            self.vis_poly = vis.intersection(calib.footprint(self.scene.bounds))
-            if self.vis_poly.is_empty:
-                self.vis_poly = vis
-            self.vis_mask = self.oracle.fog.mask_from_poly(self.vis_poly)
+            d_deg, f_deg = calib.view_cone()
+            self._custom_cone = calib.cam_dir is not None
+            self.cam_spec = {"xy": list(calib.cam_xy), "h": float(calib.cam_h), "dir": d_deg, "fov": f_deg}
+        elif "dir" not in self.cam_spec:
+            self.cam_spec["dir"], self.cam_spec["fov"] = self._default_dir(self.cam_spec["xy"]), 75.0
+        self._refresh_visibility()
+
+    def set_cam_spec(self, xy, h, dir_deg=None, fov_deg=None) -> None:
+        x, y, h_val = float(xy[0]), float(xy[1]), float(h)
+        if not (math.isfinite(x) and math.isfinite(y) and math.isfinite(h_val) and h_val > 0.1):
+            raise ValueError("Posizione o altezza camera non valida (h > 0.1 m)")
+        d_val = self.cam_spec.get("dir", self._default_dir((x, y)))
+        if dir_deg is not None and math.isfinite(float(dir_deg)):
+            d_val, self._custom_cone = round(((float(dir_deg) + 180.0) % 360.0) - 180.0, 1), True
+        elif not self._custom_cone:
+            d_val = self._default_dir((x, y))
+        f_val = float(self.cam_spec.get("fov", 75.0))
+        if fov_deg is not None and math.isfinite(float(fov_deg)):
+            f_val, self._custom_cone = round(max(20.0, min(360.0, float(fov_deg))), 1), True
+        self.cam_spec = {"xy": [round(x, 3), round(y, 3)], "h": round(h_val, 3), "dir": d_val, "fov": f_val}
+        if self.calib is not None:
+            self.calib.cam_xy, self.calib.cam_h = (x, y), h_val
+            if self._custom_cone:
+                self.calib.cam_dir, self.calib.cam_fov = d_val, f_val
+            self.set_calibration(self.calib)
+        else:
+            self.version += 1
+            self._refresh_visibility()
 
     def _inside(self, xy):
         pt = Point(xy)
         b = self.scene.bounds
         if b.contains(pt):
             return (float(xy[0]), float(xy[1]))
-        q = nearest_points(b.exterior, pt)[0]
-        c = b.centroid
-        k = 0.05 / max(math.hypot(c.x - q.x, c.y - q.y), 1e-6)  # 5 cm verso l'interno
-        return (q.x + (c.x - q.x) * k, q.y + (c.y - q.y) * k)
+        inner = b.buffer(-0.05)
+        if not inner.is_empty:
+            q = nearest_points(inner, pt)[0]
+            return (float(q.x), float(q.y))
+        rp = b.representative_point()
+        return (float(rp.x), float(rp.y))
 
     # ---- elaborazione --------------------------------------------------------------------
     def _is_driver(self, xy, pose) -> bool:
@@ -118,14 +169,8 @@ class LivePipeline:
             state["health"] = round(health, 2)
             state["frame_age"] = round(frame_age, 3)
             state["persons"] = [
-                {
-                    "id": i + 1,
-                    "xy": None,
-                    "speed": 0.0,
-                    "conf": round(float(d.conf), 2),
-                    "box": [round(v, 1) for v in d.box],
-                    "foot": [round(float(d.foot[0]), 1), round(float(d.foot[1]), 1)],
-                }
+                {"id": i + 1, "xy": None, "speed": 0.0, "conf": round(float(d.conf), 2),
+                 "box": [round(v, 1) for v in d.box], "foot": [round(float(d.foot[0]), 1), round(float(d.foot[1]), 1)]}
                 for i, d in enumerate(raw_persons)
             ]
             best_m = max(vd, key=lambda d: (d.box[2] - d.box[0]) * (d.box[3] - d.box[1])) if vd else None
@@ -180,7 +225,7 @@ class LivePipeline:
             else:
                 self._over_since, self._flag = None, False
 
-        fog_grid = self.oracle.fog.state_map(t).astype(np.uint8)
+        fog_grid, fog_dict = self.fog_payload(t)
         persons = []
         for tr in tracks:
             d = box_of.get(tr.xy)
@@ -198,29 +243,52 @@ class LivePipeline:
                 "cause": decision.cause, "cause_it": CAUSE_IT.get(decision.cause, decision.cause)},
             "path": [[round(float(x), 2), round(float(y), 2)] for x, y in pts[::2]],
             "health": round(health, 2), "frame_age": round(frame_age, 3), "violations": self.violations,
-            "fog": {"nx": int(fog_grid.shape[1]), "ny": int(fog_grid.shape[0]), "minx": self.oracle.fog.minx,
-                    "miny": self.oracle.fog.miny, "res": self.oracle.fog.res,
-                    "b64": base64.b64encode(fog_grid.tobytes()).decode("ascii")},
-            "_fog": fog_grid,
+            "fog": fog_dict, "_fog": fog_grid,
         })
         return state
+
+    def fog_payload(self, t: float | None = None) -> tuple[np.ndarray, dict]:
+        """Griglia fog (uint8) e payload JSON serializzabile per la UI."""
+        ts = (self.oracle.fog.t_prev or 0.0) if t is None else t
+        fog_grid = self.oracle.fog.state_map(ts).astype(np.uint8)
+        return fog_grid, {
+            "nx": int(fog_grid.shape[1]), "ny": int(fog_grid.shape[0]),
+            "minx": self.oracle.fog.minx, "miny": self.oracle.fog.miny, "res": self.oracle.fog.res,
+            "b64": base64.b64encode(fog_grid.tobytes()).decode("ascii"),
+        }
 
     def scene_info(self) -> dict:
         """Dati statici per la UI: confini, ostacoli, campo visivo e posizione della camera."""
         def ring(poly):
             return [[round(x, 3), round(y, 3)] for x, y in poly.exterior.coords]
 
-        fov = None
-        if self.vis_poly is not None:
-            geom = self.vis_poly if self.vis_poly.geom_type == "Polygon" else max(self.vis_poly.geoms, key=lambda g: g.area)
-            fov = ring(geom)
+        fov, vp = None, self.vis_poly
+        if vp is not None and not vp.is_empty:
+            polys = [vp] if vp.geom_type == "Polygon" else [g for g in getattr(vp, "geoms", []) if g.geom_type == "Polygon" and not g.is_empty]
+            if polys:
+                fov = ring(max(polys, key=lambda g: g.area))
+        cam_xy = list(self.cam_xy) if self.cam_xy is not None else list(self.cam_spec["xy"])
+        cam_h = float(self.calib.cam_h if self.calib is not None else self.cam_spec["h"])
+        heading, half_fov = self._cone_rad()
         return {
             "bounds": ring(self.scene.bounds),
             "occluders": [{"name": o.name, "height": o.height, "coords": ring(o.poly) if o.poly.geom_type == "Polygon" else []}
                           for o in self.scene.occluders],
-            "fov": fov, "cam": None if self.calib is None else {"xy": list(self.cam_xy), "h": self.calib.cam_h},
+            "fov": fov,
+            "shadows": scene_shadows(cam_xy, self.scene, eye_h=cam_h, target_h=0.0, heading=heading, half_fov=half_fov),
+            "cam": {"xy": cam_xy, "h": cam_h, "dir": float(self.cam_spec.get("dir", 0.0)), "fov": float(self.cam_spec.get("fov", 75.0))},
             "calibrated": self.calib is not None, "version": self.version,
-            "calib": None if self.calib is None else {"rms_m": round(self.calib.rms_m, 3), "image_size": list(self.calib.image_size)},
+            "calib": None if self.calib is None else {
+                "rms_m": round(self.calib.rms_m, 3),
+                "rms_px": round(self.calib.rms_px, 2),
+                "point_errors_px": self.calib.point_errors_px,
+                "k1": round(self.calib.k1, 4),
+                "fov_deg": self.calib.fov_deg(),
+                "image_size": list(self.calib.image_size),
+                "img_pts": self.calib.img_pts,
+                "world_pts": self.calib.world_pts,
+                "overlay": overlay_polys(self.calib, self.scene),
+            },
         }
 
 
