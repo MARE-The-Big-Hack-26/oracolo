@@ -11,6 +11,9 @@ canvas{width:100%;display:block;cursor:crosshair;background:#000;border-radius:6
 #qrcard{position:fixed;top:64px;right:16px;background:#1e222b;border:1px solid #3a4152;border-radius:12px;padding:14px 18px;text-align:center;box-shadow:0 10px 30px rgba(0,0,0,.6);z-index:20;display:none;max-width:260px}
 #qrcard img{width:170px;height:170px;border-radius:8px;background:#fff;display:block;margin:8px auto}
 #qrcard .u{font-family:monospace;font-size:12px;color:#8ab4f8;word-break:break-all}
+#anch{margin:0 16px 8px;background:#171a21;border-radius:10px;padding:8px 14px}#anch summary{cursor:pointer}
+#anch .r{display:flex;gap:8px;align-items:center;margin:4px 0;flex-wrap:wrap}#anch .r input{width:84px}#anch .r b{width:60px}
+#anst.ok{color:#34c759}#anst.warn{color:#fbbf24}#anst.bad{color:#f87171}
 </style></head><body>
 <header><b>Calibrazione</b><span id="step">1) Clicca un punto A TERRA sul video…</span>
 <button id="qrbtn" type="button">QR iPhone</button><button id="refresh">Aggiorna immagine</button><button id="undo">Annulla ultimo</button><button id="reset">Ricomincia</button>
@@ -18,11 +21,19 @@ canvas{width:100%;display:block;cursor:crosshair;background:#000;border-radius:6
 <button id="setcam">Imposta posizione camera sulla mappa</button><button id="save" class="pri" disabled>Calcola e salva</button><a href="/room" style="color:#8ab4f8">Disegna planimetria</a><a href="/" style="color:#8ab4f8">← pannello</a></header>
 <div id="qrcard"><b>Connetti iPhone</b><img src="/qr.png" alt="QR Camera"><div class="u" id="qru"></div></div>
 <div id="msg"></div>
+<details id="anch"><summary><b>Ancore a terra</b> (calibrazione automatica, senza clic sul video) <span id="anst"></span></summary>
+<div class="hint" style="padding:6px 0">Incolla 3-4 marker ArUco (<b>id 10-13</b>, dizionario 4x4) a terra in punti NOTI della planimetria, sparsi e ben visibili; il lato SUPERIORE del marker deve guardare verso +Y della mappa (se è ruotato, scrivi i gradi in senso antiorario). Scrivi il CENTRO di ogni marker in metri (o premi «sulla mappa» e clicca). Poi indica dove sta la camera (x, y, altezza da terra). La calibrazione a 4 clic qui sotto resta valida come alternativa.</div>
+<div class="r"><label>lato del quadrato NERO (cm) <input id="ansz" type="number" step="0.5" value="20"></label></div>
+<div id="anrows"></div>
+<div class="r"><b>camera</b><label>x <input id="acx" type="number" step="0.01"></label><label>y <input id="acy" type="number" step="0.01"></label><label>altezza <input id="ach" type="number" step="0.05"></label>
+<span class="hint" style="padding:0">metri sulla planimetria; si ricorda dalla calibrazione precedente se già impostata</span></div>
+<div class="r"><button id="ansave" type="button">Salva ancore</button><button id="ancal" type="button" class="pri">Calibra da ancore</button><button id="anclr" type="button">Rimuovi ancore</button></div>
+</details>
 <div id="cols"><div class="box"><div class="hint">VIDEO: clicca punti a terra riconoscibili (angoli stanza, base di un mobile)</div><canvas id="img"></canvas></div>
 <div class="box"><div class="hint">MAPPA: clicca lo stesso punto sulla planimetria</div><canvas id="map"></canvas></div></div>
 <div class="hint">Servono almeno 4 punti, sparsi (non su una linea). Poi segna dove sta la camera sulla mappa e a che altezza.</div>
 <script>
-let scene=null, im=new Image(), imgPts=[], worldPts=[], pending=null, cam=null, camMode=false;
+let scene=null, im=new Image(), imgPts=[], worldPts=[], pending=null, cam=null, camMode=false, pickAnchor=null;
 const ci=document.getElementById('img'), cm=document.getElementById('map'), msg=t=>document.getElementById('msg').textContent=t;
 function mview(){const xs=scene.bounds.map(p=>p[0]),ys=scene.bounds.map(p=>p[1]);const minx=Math.min(...xs),maxx=Math.max(...xs),miny=Math.min(...ys),maxy=Math.max(...ys);
   const w=cm.width,h=cm.height,pad=20,sc=Math.min((w-2*pad)/(maxx-minx),(h-2*pad)/(maxy-miny));const ox=(w-sc*(maxx-minx))/2,oy=(h-sc*(maxy-miny))/2;
@@ -35,6 +46,8 @@ function drawMap(){if(!scene)return;cm.width=900;cm.height=Math.round(900*0.72);
   const poly=(pts,f,s)=>{c.beginPath();pts.forEach((p,i)=>i?c.lineTo(v.X(p[0]),v.Y(p[1])):c.moveTo(v.X(p[0]),v.Y(p[1])));c.closePath();if(f){c.fillStyle=f;c.fill();}c.strokeStyle=s;c.lineWidth=2;c.stroke();};
   poly(scene.bounds,'#161a22','#9aa0a6');scene.occluders.forEach(o=>{if(o.coords.length)poly(o.coords,'#3b2a14','#ffa500');});
   worldPts.forEach((p,i)=>{c.fillStyle='#3b82f6';c.beginPath();c.arc(v.X(p[0]),v.Y(p[1]),8,0,7);c.fill();c.fillStyle='#fff';c.font='bold 20px sans-serif';c.fillText(String(i+1),v.X(p[0])+10,v.Y(p[1])-10);});
+  if(scene.anchors&&scene.anchors.anchors){for(const [id,a] of Object.entries(scene.anchors.anchors)){const h=Math.max(6,scene.anchors.size_m*v.sc/2);
+    c.strokeStyle='#e879f9';c.lineWidth=3;c.strokeRect(v.X(a.x)-h,v.Y(a.y)-h,2*h,2*h);c.fillStyle='#e879f9';c.font='bold 16px sans-serif';c.fillText('A'+id,v.X(a.x)+h+4,v.Y(a.y)-h);}}
   if(cam){c.fillStyle='#34c759';c.fillRect(v.X(cam[0])-8,v.Y(cam[1])-8,16,16);c.fillStyle='#fff';c.font='16px sans-serif';c.fillText('camera',v.X(cam[0])+12,v.Y(cam[1])-10);}}
 function upd(){const n=imgPts.length,ready=n>=4&&worldPts.length===n&&cam&&!pending;
   document.getElementById('save').disabled=!ready;
@@ -49,6 +62,7 @@ async function saveCalib(){
 function pos(e,cv){const r=cv.getBoundingClientRect();return [(e.clientX-r.left)*cv.width/r.width,(e.clientY-r.top)*cv.height/r.height];}
 ci.addEventListener('click',e=>{if(camMode||pending||!im.naturalWidth)return;pending=pos(e,ci);upd();});
 cm.addEventListener('click',e=>{if(!scene)return;const v=mview(),[px,py]=pos(e,cm),w=[v.ix(px),v.iy(py)];
+  if(pickAnchor!==null){document.getElementById('ax'+pickAnchor).value=w[0].toFixed(2);document.getElementById('ay'+pickAnchor).value=w[1].toFixed(2);pickAnchor=null;msg('Coordinate dell\'ancora impostate: premi «Salva ancore».');return;}
   if(camMode){cam=w;camMode=false;upd();saveCalib();return;}
   if(!pending){msg('Prima clicca un punto sul video.');return;}
   imgPts.push(pending);worldPts.push(w);pending=null;msg('');
@@ -64,4 +78,28 @@ document.getElementById('save').onclick=saveCalib;
   try{const r=await fetch('/scene');scene=await r.json();document.getElementById('qru').textContent=scene.camera_url||'';if(scene.no_scene)msg('Prima scegli la planimetria dal pannello: «Carica DXF» oppure «Disegna planimetria».');
     if(scene.cam){cam=scene.cam.xy;document.getElementById('ch').value=scene.cam.h;}}catch(e){msg('Planimetria non disponibile');}
   im.onload=()=>{qrc.style.display='none';upd();};im.onerror=()=>{qrc.style.display='block';upd();};im.src='/snapshot.jpg?_='+Date.now();upd();})();
-</script></body></html>
+</script><script>
+// ---- ancore a terra ---------------------------------------------------------------------------------
+const ANCH_IDS=[10,11,12,13], $=id=>document.getElementById(id);
+$('anrows').innerHTML=ANCH_IDS.map(i=>`<div class="r"><b>id ${i}</b><label>x <input id="ax${i}" type="number" step="0.01"></label><label>y <input id="ay${i}" type="number" step="0.01"></label><label>rot ° <input id="ar${i}" type="number" step="1" value="0" style="width:60px"></label><button type="button" data-pick="${i}">sulla mappa</button></div>`).join('');
+document.querySelectorAll('[data-pick]').forEach(b=>b.onclick=()=>{pickAnchor=b.dataset.pick;msg('Clicca sulla MAPPA il centro del marker id '+b.dataset.pick+'.');});
+function anchorBody(){const o={};ANCH_IDS.forEach(i=>{const x=parseFloat($('ax'+i).value),y=parseFloat($('ay'+i).value);if(isFinite(x)&&isFinite(y))o[i]={x,y,rot_deg:parseFloat($('ar'+i).value)||0};});
+  const b={size_m:(parseFloat($('ansz').value)||20)/100,anchors:o};const cx=parseFloat($('acx').value),cy=parseFloat($('acy').value),ch=parseFloat($('ach').value);
+  if(isFinite(cx)&&isFinite(cy)&&isFinite(ch))b.camera={x:cx,y:cy,h:ch};return b;}
+function fillAnchors(a){if(!a)return;$('ansz').value=Math.round(a.size_m*1000)/10;
+  for(const [id,v] of Object.entries(a.anchors||{})){if($('ax'+id)){$('ax'+id).value=v.x;$('ay'+id).value=v.y;$('ar'+id).value=v.rot_deg||0;}}
+  if(a.camera){$('acx').value=a.camera.x;$('acy').value=a.camera.y;$('ach').value=a.camera.h;}}
+async function post(url,body){try{const r=await fetch(url,{method:'POST',body:JSON.stringify(body)});return await r.json();}catch(e){return {ok:false,error:'Errore di rete: '+e};}}
+async function reloadScene(){try{scene=await (await fetch('/scene')).json();upd();}catch(e){}}
+$('ansave').onclick=async()=>{const j=await post('/anchors',anchorBody());msg(j.ok?('Ancore salvate.'+((j.warnings||[]).length?' ⚠ '+j.warnings.join(' '):'')):('Errore: '+j.error));if(j.ok)reloadScene();};
+$('anclr').onclick=async()=>{const j=await post('/anchors',{clear:true});msg(j.ok?'Ancore rimosse (l\'allineamento CAD-video non sarà verificato).':('Errore: '+j.error));reloadScene();};
+$('ancal').onclick=async()=>{let j=await post('/anchors',anchorBody());if(!j.ok){msg('Errore: '+j.error);return;}
+  const b=anchorBody();j=await post('/calib_anchors',b.camera?{camera:b.camera}:{});
+  msg(j.ok?`Calibrazione dalle ancore salvata. Errore sugli angoli: ${(j.rms_m*100).toFixed(1)} cm; camera (${j.cam.join(', ')}) ${j.cam_source}. Controlla nel pannello che il CAD si sovrapponga al video.`:('Errore: '+j.error));
+  if(j.ok){if(j.cam){cam=[j.cam[0],j.cam[1]];$('ch').value=j.cam[2];}reloadScene();}};
+(async()=>{try{const a=await (await fetch('/anchors')).json();fillAnchors(a.anchors);if(a.anchors)$('anch').open=true;
+  const sc=await (await fetch('/scene')).json();if(sc.cam&&!$('acx').value){$('acx').value=sc.cam.xy[0];$('acy').value=sc.cam.xy[1];$('ach').value=sc.cam.h;}}catch(e){}
+  setInterval(async()=>{try{const a=(await (await fetch('/state?_='+Date.now())).json()).align,el=$('anst');if(!a||a.status==='NON_VERIFICATO'){el.textContent='';return;}
+    el.className=a.status==='OK'?'ok':(a.status==='NON_COINCIDE'?'bad':'warn');el.textContent='— '+a.status+': '+(a.message||'');}catch(e){}},800);})();
+</script>
+</body></html>

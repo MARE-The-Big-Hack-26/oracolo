@@ -24,8 +24,13 @@ from ..cab import CAUSE_IT
 from ..engine import Oracle
 from ..geometry import visibility_polygon
 from ..policy import LEVEL_NAMES, PedParams, VehicleParams
+from .align import AlignmentMonitor
 from .detectors import MarkerDetector, NoPersonDetector
 from .tracker import PersonTracker, VehicleTracker
+
+
+NOT_VERIFIED = {"status": "NON_VERIFICATO", "confidence": 1.0,
+                "message": "Nessuna ancora a terra configurata: non verifico che il CAD coincida con il video."}
 
 
 def frame_health(frame) -> float:
@@ -44,7 +49,7 @@ def frame_health(frame) -> float:
 class LivePipeline:
     def __init__(self, scene, calib=None, params: VehicleParams | None = None, ped: PedParams | None = None,
                  person_detector=None, marker: MarkerDetector | None = None, driver_radius: float = 1.3,
-                 use_fog: bool = True):
+                 use_fog: bool = True, anchors=None):
         self.scene = scene
         self.p = params or VehicleParams()
         self.pp = ped or PedParams()
@@ -58,7 +63,24 @@ class LivePipeline:
         self.violations = 0
         self._over_since = None
         self._flag = False
+        self.anchors, self.align = None, None
+        self.set_anchors(anchors)
         self.set_calibration(calib)
+
+    # ---- ancore e allineamento CAD-video -------------------------------------------------
+    def set_anchors(self, anchors) -> None:
+        """Ancore ArUco a terra (``align.AnchorSet``) o None. Senza ancore l'allineamento non è verificabile."""
+        old = self.align
+        self.anchors = anchors
+        self.align = AlignmentMonitor(anchors) if anchors is not None else None
+        if old is not None and self.align is not None:  # risalvare le coordinate non deve far perdere le ancore già viste
+            self.align._hist = {i: v for i, v in old._hist.items() if i in anchors.anchors}
+
+    def calibrate_from_anchors(self, t: float, camera=None):
+        """(Calibration, info) dalle ancore viste di recente; ValueError se non basta. Non la applica."""
+        if self.align is None:
+            raise ValueError("Nessuna ancora configurata.")
+        return self.align.calibrate(t, fallback=self.calib, camera=camera)
 
     # ---- calibrazione --------------------------------------------------------------------
     def set_scene(self, scene) -> None:
@@ -114,7 +136,10 @@ class LivePipeline:
         health = frame_health(frame)
         vd = self.marker.detect(frame)
         raw_persons = self.persons.detect(frame)
+        if self.align is not None:
+            self.align.observe(t, self.marker.seen, (frame.shape[1], frame.shape[0]))
         if cal is None:
+            state["align"] = self.align.pending(t) if self.align is not None else NOT_VERIFIED
             state["health"] = round(health, 2)
             state["frame_age"] = round(frame_age, 3)
             state["persons"] = [
@@ -133,6 +158,10 @@ class LivePipeline:
             return state
         fh, fw = frame.shape[:2]
         k = cal.image_size[0] / fw
+        # CAD <-> video: con le ancore si riproietta e si confronta; se non coincidono health scende (0 = FERMA)
+        al = self.align.evaluate(t, cal) if self.align is not None else NOT_VERIFIED
+        health = min(health, al["confidence"])
+        state["align"] = al
         bounds_buf = self.scene.bounds.buffer(1.5)
 
         # muletto (sedia con marker)
@@ -220,6 +249,7 @@ class LivePipeline:
                           for o in self.scene.occluders],
             "fov": fov, "cam": None if self.calib is None else {"xy": list(self.cam_xy), "h": self.calib.cam_h},
             "calibrated": self.calib is not None, "version": self.version,
+            "anchors": None if self.anchors is None else self.anchors.to_dict(),
             "calib": None if self.calib is None else {"rms_m": round(self.calib.rms_m, 3), "image_size": list(self.calib.image_size)},
         }
 

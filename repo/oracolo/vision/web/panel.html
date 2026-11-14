@@ -24,6 +24,8 @@
 #choose a{background:#232a38}
 #cadrep{position:fixed;top:64px;right:14px;max-width:420px;max-height:60%;overflow:auto;background:#1e222b;border:1px solid #3a4152;border-radius:10px;padding:10px 14px;font-size:13px;z-index:25;display:none;box-shadow:0 10px 30px rgba(0,0,0,.6)}
 #cadrep .warn{color:#fbbf24;margin-top:4px}#cadrep .err{color:#f87171;margin-top:4px}
+#alignbar{position:fixed;top:60px;left:14px;max-width:58%;z-index:22;display:none;padding:9px 14px;border-radius:10px;font-weight:600;font-size:15px;box-shadow:0 8px 24px rgba(0,0,0,.55)}
+#alignbar.bad{background:#b3261e;color:#fff}#alignbar.warn{background:#b58900;color:#fff}
 #cadinfo{cursor:pointer;text-decoration:underline dotted}
 </style></head><body>
 <div id="bar"><span id="lvl">—</span><span id="lim"></span><span id="cause">in attesa di frame…</span>
@@ -32,13 +34,13 @@
 <div id="choose"><div class="c"><h2>Scegli la planimetria</h2>
 <p>Importa il tuo file DXF (solo DXF) oppure disegna la stanza con l'editor. Non c'è una stanza predefinita.</p>
 <div class="btns"><button id="dxfbtn2" type="button">Carica DXF</button><a href="/room">Disegna planimetria</a></div></div></div>
-<div id="cadrep"></div>
+<div id="cadrep"></div><div id="alignbar"></div>
 <div id="main"><div class="box" id="vid"><img id="v" src="/video.mjpg"><div id="nocal">Non calibrato: apri «Calibra camera»</div>
 <div id="qrcard"><b>Connetti iPhone</b><img src="/qr.png" alt="QR Camera"><div class="u" id="qru"></div><div class="h">Inquadra con la fotocamera dell'iPhone, accetta il certificato e premi Avvia</div></div></div>
 <div class="box" id="mapbox"><canvas id="map"></canvas></div></div>
 <div id="foot"><span><span class="k">fps</span> <b id="fps">–</b></span><span><span class="k">latenza</span> <b id="lat">–</b></span>
 <span><span class="k">persone</span> <b id="np">0</b></span><span><span class="k">velocità muletto</span> <b id="vs">–</b></span>
-<span><span class="k">violazioni</span> <b id="vio">0</b></span><span><span class="k">planimetria</span> <b id="cadinfo">–</b></span><span><span class="k">iPhone</span> <b id="cam"></b></span></div>
+<span><span class="k">violazioni</span> <b id="vio">0</b></span><span><span class="k">planimetria</span> <b id="cadinfo">–</b></span><span><span class="k">allineamento CAD-video</span> <b id="alst">–</b></span><span><span class="k">iPhone</span> <b id="cam"></b></span></div>
 <script src="/dxfload.js"></script>
 <script>
 const COL=["#1b8a3a","#b58900","#cc6a10","#b3261e"], NAME=["NORMALE","ATTENZIONE","RALLENTA","FERMA"];
@@ -96,6 +98,11 @@ async function poll(){try{const r=await fetch('/state?_='+Date.now(),{cache:'no-
     document.getElementById('lim').textContent=(d.limit*3.6).toFixed(1)+' km/h';document.getElementById('cause').textContent=d.cause_it;}
   else{bar.style.background='#444';document.getElementById('lvl').textContent=last.calibrated?'MULETTO NON RILEVATO':'NON CALIBRATO';
     document.getElementById('lim').textContent='';document.getElementById('cause').textContent=last.calibrated?'Marker non visibile nell\'inquadratura':'Calibra la camera';}
+  const al=last.align,ab=document.getElementById('alignbar'),alst=document.getElementById('alst');
+  if(al&&(al.status==='NON_COINCIDE'||al.status==='DEGRADATO')){ab.style.display='block';ab.className=al.status==='NON_COINCIDE'?'bad':'warn';
+    ab.textContent=(al.status==='DEGRADATO'?'Allineamento degradato — ':'')+(al.message||'');}else ab.style.display='none';
+  alst.textContent=!al?'–':al.status==='NON_VERIFICATO'?'non verificato (nessuna ancora)':al.status==='SENZA_CALIBRAZIONE'?`ancore viste ${al.n_seen}/${al.n_anchors}`:
+    al.status+(al.rms_m!=null?` (${(al.rms_m*100).toFixed(1)} cm)`:'');
   document.getElementById('fps').textContent=last.fps??'–';document.getElementById('lat').textContent=last.latency!==undefined?Math.round(last.latency*1000)+' ms':'–';
   document.getElementById('np').textContent=(last.persons||[]).length;document.getElementById('vio').textContent=last.violations??0;
   document.getElementById('vs').textContent=last.vehicle?(last.vehicle.speed*3.6).toFixed(1)+' km/h':'–';draw();}catch(e){}}

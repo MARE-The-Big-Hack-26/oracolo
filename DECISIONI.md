@@ -19,5 +19,9 @@
 | 14/11 | Mappa stanza: misure o scansione LiDAR → DXF; calibrazione camera con 4 coppie di punti | Non esiste il CAD della stanza; si evita il metro per la camera | team |
 | 14/11 | Telefoni/tag UWB (stile ELOshield): fuori scopo, solo estensione futura | La challenge è visione; i tag non vedono chi non li porta | team |
 | 14/11 | Repo pubblica: github.com/MARE-The-Big-Hack-26/oracolo | Tutti i colleghi lavorano sugli stessi file | team |
+| 14/11 | Nessuna stanza predefinita: all'avvio si sceglie «Carica DXF» (solo DXF) o «Disegna planimetria»; `scenarios/` = esempi e fixture | Il prodotto lavora sul CAD dell'utente; l'editor `/room` non sovrascrive più gli esempi (salva in `planimetria.dxf`) | team (impl. Claude) |
+| 14/11 | Allineamento CAD-video con 4 ancore ArUco (id 10-13) a terra; calibrazione a 4 clic resta come alternativa | Misura di coincidenza robusta e rilevamento di camera spostata; soglie (10/25 cm) sono ipotesi da tarare | team (impl. Claude) |
+| 14/11 | La posizione della camera NON si stima dalle ancore: si indica (x, y, h) | Stima da un solo piano misurata inaffidabile (~0,5 m di errore con 0,5 px di rumore) | team (impl. Claude) |
+| 14/11 | Ancore: nero 20 cm consigliato (A3), 15 cm minimo (A4) | Simulazione a 960x540 (indicativa): da confermare con iPhone | team (impl. Claude) |
 
 Aggiungere una riga a ogni scelta importante (data, motivo, chi).

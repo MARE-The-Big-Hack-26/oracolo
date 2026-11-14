@@ -24,6 +24,7 @@ make camera                            # avvia il server (HTTPS, porta 8443) SEN
 - **iPhone:** `https://<IP-del-Mac>:8443/camera` (l'indirizzo lo stampa il terminale). Safari: «Mostra dettagli → visita il sito web», poi **Avvia** e consenti la camera. Orizzontale, fermo sul treppiede. Mac e iPhone sulla stessa rete (o hotspot).
 - **Calibrazione (una volta, treppiede fermo):** `https://localhost:8443/calibrate`
   1. «Aggiorna immagine»; 2. clicca un punto A TERRA sul video e lo stesso punto sulla mappa (angolo della stanza, base di un mobile), almeno 4, ben distanziati; 3. «Imposta posizione camera» e clicca dove sta sulla mappa; altezza della camera da terra; 4. «Calcola e salva» → `calib.json` (errore medio in cm).
+- **Calibrazione automatica con ancore a terra (alternativa ai clic):** 4 marker ArUco id 10-13 a terra in punti noti del CAD + posizione della camera, da `/calibrate` → «Ancore a terra»; segnala anche se il CAD non coincide più col video. Dettagli, dimensione dei marker e limiti: `docs/13-allineamento-cad-video.md`.
 - **Sedia:** stampare `markers/marker_muletto_ID0_A4.pdf` (100%, carta opaca), incollarlo piatto sulla sedia con il lato SUPERIORE verso il davanti; quota del marker `--marker-h` (default 0,45 m).
 
 ## Piano B e prove senza iPhone

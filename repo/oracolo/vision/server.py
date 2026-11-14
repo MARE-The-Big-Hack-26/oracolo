@@ -7,6 +7,7 @@
     GET  /video.mjpg  video annotato (MJPEG)
     GET  /state       stato JSON     GET /scene  planimetria + campo visivo + camera
     GET  /snapshot.jpg ultimo frame grezzo      POST /calib  salva la calibrazione
+    GET/POST /anchors  ancore ArUco a terra (id 10-13, coordinate nel CAD)    POST /calib_anchors  calibra dalle ancore
     POST /dxf         carica un DXF (corpo = file): normalizzazione + nuova planimetria (solo DXF, non DWG)
 Solo libreria standard (+ OpenCV, NumPy già in uso).
 """
@@ -27,6 +28,7 @@ import numpy as np
 from ..cab import CAUSE_IT
 from ..cad import save_dxf, scene_from_spec
 from ..cad_norm import normalize_dxf
+from .align import AnchorSet
 from .calib import Calibration
 from .pipeline import json_state
 from .viz import draw_overlay
@@ -37,7 +39,8 @@ MAX_DXF_BYTES = 20 * 1024 * 1024
 
 class LiveApp:
     def __init__(self, pipeline, calib_path="calib.json", jpeg_quality: int = 70, max_width: int = 960,
-                 stale_after: float = 0.6, dxf_path=None, scene_loaded: bool = True):
+                 stale_after: float = 0.6, dxf_path=None, scene_loaded: bool = True,
+                 anchors_path=None):
         self.pipe = pipeline
         self.calib_path = Path(calib_path)
         self.dxf_path = Path(dxf_path) if dxf_path else None
@@ -62,6 +65,13 @@ class LiveApp:
         self.cad_report = None
         self.default_height = 3.0
         self.lines_as_walls = False
+        self.anchors_path = Path(anchors_path) if anchors_path else None
+        self.anchors_error = ""
+        if self.anchors_path is not None and self.anchors_path.exists():
+            try:
+                self.pipe.set_anchors(AnchorSet.load(self.anchors_path))
+            except (ValueError, OSError) as e:
+                self.anchors_error = f"{self.anchors_path}: {e}"
 
     # ---- ingresso frame ------------------------------------------------------------------
     def push_jpeg(self, data: bytes) -> None:
@@ -153,6 +163,34 @@ class LiveApp:
                            "stats": {"occluders": len(scene.occluders), "size_m": [round(v, 3) for v in scene.bounds.bounds[2:]]}}
         return {"ok": True, "occluders": len(scene.occluders), "bounds_m": [round(v, 3) for v in scene.bounds.bounds]}
 
+    # ---- ancore a terra ------------------------------------------------------------------
+    def apply_anchors(self, body: dict) -> dict:
+        if body.get("clear"):
+            with self.lock_pipe:
+                self.pipe.set_anchors(None)
+            if self.anchors_path is not None and self.anchors_path.exists():
+                self.anchors_path.unlink()
+            return {"ok": True, "anchors": None, "warnings": []}
+        a = AnchorSet.from_dict(body, forbidden_ids=(self.pipe.marker.marker_id,))
+        warnings = []
+        out = a.outside(self.pipe.scene.bounds)
+        if out:
+            warnings.append(f"Ancore fuori dal perimetro della planimetria: {out}. Controlla le coordinate.")
+        if self.anchors_path is not None:
+            a.save(self.anchors_path)
+        with self.lock_pipe:
+            self.pipe.set_anchors(a)
+        return {"ok": True, "anchors": a.to_dict(), "warnings": warnings}
+
+    def calibrate_from_anchors(self, body: dict) -> dict:
+        cam = body.get("camera") if isinstance(body, dict) else None
+        camera = None if not cam else (float(cam["x"]), float(cam["y"]), float(cam["h"]))
+        with self.lock_pipe:
+            cal, info = self.pipe.calibrate_from_anchors(time.monotonic(), camera)  # ValueError -> 400
+            cal.save(self.calib_path)
+            self.pipe.set_calibration(cal)
+        return {"ok": True, **info}
+
     def apply_dxf(self, data: bytes, filename: str = "") -> dict:
         """Importa un DXF: normalizza (metri, origine, ostacoli) e sostituisce la planimetria. Se non è
         utilizzabile la planimetria attuale resta quella di prima e si ritornano gli errori."""
@@ -238,6 +276,11 @@ def make_handler(app: LiveApp, camera_url: str):
                 info["no_scene"] = not app.scene_loaded
                 info["cad"] = app.cad_report
                 return self._send(200, json.dumps(info).encode(), "application/json")
+            if path == "/anchors":
+                a = app.pipe.anchors
+                out = {"anchors": None if a is None else a.to_dict(), "error": app.anchors_error,
+                       "align": json.loads(app.current_state()).get("align")}
+                return self._send(200, json.dumps(out).encode(), "application/json")
             if path == "/qr.png":
                 return self._send(200, qr_bytes, "image/png")
             if path == "/snapshot.jpg":
@@ -281,6 +324,13 @@ def make_handler(app: LiveApp, camera_url: str):
                     out = app.apply_calibration(json.loads(body))
                     return self._send(200, json.dumps(out).encode(), "application/json")
                 except (ValueError, KeyError, cv2.error) as e:
+                    return self._send(400, json.dumps({"ok": False, "error": str(e)}).encode(), "application/json")
+            if self.path in ("/anchors", "/calib_anchors"):
+                try:
+                    data = json.loads(body or b"{}")
+                    out = app.apply_anchors(data) if self.path == "/anchors" else app.calibrate_from_anchors(data)
+                    return self._send(200, json.dumps(out).encode(), "application/json")
+                except (ValueError, KeyError, TypeError, cv2.error) as e:
                     return self._send(400, json.dumps({"ok": False, "error": str(e)}).encode(), "application/json")
             if self.path == "/dxf":
                 out = app.apply_dxf(body, self.headers.get("X-Filename", ""))

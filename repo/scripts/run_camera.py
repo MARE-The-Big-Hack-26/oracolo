@@ -34,6 +34,8 @@ ap.add_argument("--dxf", default=None,
 ap.add_argument("--room-file", default="planimetria.dxf",
                 help="dove si salva la planimetria (caricata o disegnata) in formato standard; non sovrascrive --dxf")
 ap.add_argument("--calib", default="calib.json")
+ap.add_argument("--anchors", default="anchors.json",
+                help="ancore ArUco a terra (id 10-13) con le coordinate nel CAD; si impostano anche da /calibrate")
 ap.add_argument("--source", default="stream", help="stream | video:PERCORSO | cam:INDICE")
 ap.add_argument("--detector", default="auto",
                 help="auto | yolo[:pose|11n|11s] | rfdetr[:nano|small|base] | hog | none")
@@ -80,10 +82,14 @@ pipe = LivePipeline(scene, calib, params=PROFILES[a.profile], ped=PedParams(v_wa
 ip = lan_ip()
 scheme = "http" if a.http else "https"
 cam_url = f"{scheme}://{ip}:{a.port}/camera"
-app = LiveApp(pipe, a.calib, dxf_path=a.room_file, scene_loaded=bool(a.dxf))
+app = LiveApp(pipe, a.calib, dxf_path=a.room_file, scene_loaded=bool(a.dxf), anchors_path=a.anchors)
 app.default_height, app.lines_as_walls = a.default_height, a.lines_as_walls
 if rep is not None:
     app.cad_report = {**rep, "source": "dxf", "filename": Path(a.dxf).name}
+print("Ancore a terra:", "caricate da " + a.anchors if pipe.anchors is not None else
+      "nessuna (allineamento CAD-video non verificato): impostale da /calibrate")
+if app.anchors_error:
+    print("  ATTENZIONE: ancore non lette:", app.anchors_error)
 cert, key = (None, None) if a.http else ensure_cert(a.certs)
 serve(app, "0.0.0.0", a.port, cert, key, cam_url)
 
