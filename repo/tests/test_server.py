@@ -108,3 +108,25 @@ def test_frame_fermi_comando_di_arresto(live):
     time.sleep(0.8)  # l'iPhone smette di inviare
     st = json.loads(_req(base + "/state").read())
     assert st["stale"] and st["decision"]["level"] == 3 and st["decision"]["cause"] == "affidabilita_persa"
+
+
+def test_https_connessione_muta_non_blocca_il_server(tmp_path):
+    """Un client che apre il socket e non parla (Safari lo fa) non deve bloccare gli altri."""
+    import socket
+    dxf = Path(__file__).resolve().parent.parent / "scenarios" / "stanza.dxf"
+    scene, _ = load_dxf(dxf)
+    app = LiveApp(LivePipeline(scene, None), tmp_path / "c.json")
+    cert, key = ensure_cert(tmp_path / "certs")
+    httpd = serve(app, "127.0.0.1", 0, cert, key)
+    port = httpd.server_address[1]
+    mute = socket.create_connection(("127.0.0.1", port))
+    try:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+        r = _req(f"https://127.0.0.1:{port}/camera", ctx=ctx)
+        assert b"getUserMedia" in r.read()
+    finally:
+        mute.close()
+        app.running = False
+        httpd.shutdown()

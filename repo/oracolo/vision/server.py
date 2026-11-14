@@ -130,6 +130,13 @@ def make_handler(app: LiveApp, camera_url: str):
     class H(BaseHTTPRequestHandler):
         protocol_version = "HTTP/1.1"
 
+        def setup(self):  # handshake TLS nel thread della connessione, non nel ciclo accept()
+            if isinstance(self.request, ssl.SSLSocket):
+                self.request.settimeout(10)
+                self.request.do_handshake()
+                self.request.settimeout(None)
+            super().setup()
+
         def log_message(self, *a):  # silenzio
             pass
 
@@ -216,7 +223,7 @@ def serve(app: LiveApp, host="0.0.0.0", port=8443, certfile=None, keyfile=None, 
     if certfile:
         ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
         ctx.load_cert_chain(certfile, keyfile)
-        httpd.socket = ctx.wrap_socket(httpd.socket, server_side=True)
+        httpd.socket = ctx.wrap_socket(httpd.socket, server_side=True, do_handshake_on_connect=False)
     threading.Thread(target=httpd.serve_forever, daemon=True).start()
     threading.Thread(target=app.worker, daemon=True).start()
     return httpd
