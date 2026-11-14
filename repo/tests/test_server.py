@@ -40,8 +40,10 @@ def live(tmp_path):
 
 def test_flusso_completo(live):
     app, base = live
-    for page in ("/", "/camera", "/calibrate"):
+    for page in ("/", "/camera", "/calibrate", "/room"):
         assert b"<html" in _req(base + page).read()
+    assert b"OrbitControls" in _req(base + "/room.js").read()
+    assert _req(base + "/qr.png").read().startswith(b"\x89PNG")
     assert json.loads(_req(base + "/scene").read())["calibrated"] is False
     # frame -> snapshot disponibile
     frame = synth.render_frame((2.5, 1.2, 1.5708))
@@ -128,5 +130,39 @@ def test_https_connessione_muta_non_blocca_il_server(tmp_path):
         assert b"getUserMedia" in r.read()
     finally:
         mute.close()
+        app.running = False
+        httpd.shutdown()
+
+
+def test_editor_planimetria_e_ostacoli(tmp_path):
+    dxf_out = tmp_path / "stanza.dxf"
+    dxf_init = Path(__file__).resolve().parent.parent / "scenarios" / "stanza.dxf"
+    scene, _ = load_dxf(dxf_init)
+    app = LiveApp(LivePipeline(scene, None, person_detector=NoPersonDetector()), tmp_path / "calib.json", dxf_path=dxf_out)
+    httpd = serve(app, "127.0.0.1", 0)
+    base = f"http://127.0.0.1:{httpd.server_address[1]}"
+    try:
+        payload = {
+            "bounds": [[0.0, 0.0], [6.5, 0.0], [6.5, 4.5], [0.0, 4.5]],
+            "obstacles": [
+                {"name": "pianoforte", "x": 0.5, "y": 1.0, "w": 1.4, "d": 0.65, "height": 1.1},
+                {"name": "armadio", "x": 4.0, "y": 2.5, "w": 1.2, "d": 0.6, "height": 2.2},
+            ],
+        }
+        res = json.loads(_req(base + "/scene", json.dumps(payload).encode()).read())
+        assert res["ok"] and res["occluders"] == 2 and res["bounds_m"] == [0.0, 0.0, 6.5, 4.5]
+        sc = json.loads(_req(base + "/scene").read())
+        assert len(sc["occluders"]) == 2
+        assert sc["occluders"][0]["height"] == pytest.approx(1.1)
+        assert sc["occluders"][1]["height"] == pytest.approx(2.2)
+        reloaded, info = load_dxf(dxf_out)
+        assert info["bounds_m"] == pytest.approx((0.0, 0.0, 6.5, 4.5))
+        assert sorted(o.height for o in reloaded.occluders) == pytest.approx([1.1, 2.2])
+        try:
+            _req(base + "/scene", json.dumps({"bounds": [[0, 0], [4, 0], [4, 3], [0, 3]], "obstacles": [{"x": 0, "y": 0, "w": -1, "d": 1, "height": 1.5}]}).encode())
+            assert False, "doveva rifiutare larghezza negativa"
+        except urllib.error.HTTPError as e:
+            assert e.code == 400
+    finally:
         app.running = False
         httpd.shutdown()

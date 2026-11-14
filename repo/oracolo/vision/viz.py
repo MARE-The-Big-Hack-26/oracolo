@@ -23,7 +23,23 @@ def draw_overlay(frame, calib, scene, state: dict, max_width: int = 960):
     img = frame.copy()
     fh, fw = img.shape[:2]
     if calib is None:
-        cv2.putText(img, "NON CALIBRATO: apri /calibrate", (20, 40), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 0, 255), 2)
+        uncal_persons = state.get("persons", [])
+        for pr in uncal_persons:
+            if pr.get("box"):
+                x1, y1, x2, y2 = [int(v) for v in pr["box"]]
+                cv2.rectangle(img, (x1, y1), (x2, y2), (255, 160, 0), 2)
+                lbl = f"P{pr['id']} ({pr.get('conf', 0):.0%})"
+                cv2.putText(img, lbl, (x1, max(y1 - 6, 14)), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (255, 160, 0), 2)
+            if pr.get("foot"):
+                fx, fy = [int(v) for v in pr["foot"]]
+                cv2.circle(img, (fx, fy), 5, (0, 255, 255), -1, cv2.LINE_AA)
+        mb = state.get("uncalibrated_marker")
+        if mb:
+            x1, y1, x2, y2 = [int(v) for v in mb]
+            cv2.rectangle(img, (x1, y1), (x2, y2), (0, 220, 0), 2)
+            cv2.putText(img, "marker muletto", (x1, max(y1 - 6, 14)), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (0, 220, 0), 2)
+        cv2.putText(img, f"NON CALIBRATO: apri /calibrate  (persone rilevate: {len(uncal_persons)})",
+                    (20, 40), cv2.FONT_HERSHEY_SIMPLEX, 0.85, (0, 0, 255), 2)
         return _fit(img, max_width)
     k = calib.image_size[0] / fw
 
@@ -77,6 +93,13 @@ def draw_overlay(frame, calib, scene, state: dict, max_width: int = 960):
             x1, y1, x2, y2 = [int(v) for v in pr["box"]]
             cv2.rectangle(img, (x1, y1), (x2, y2), (255, 160, 0), 2)
             cv2.putText(img, f"P{pr['id']} {pr['speed']:.1f}m/s", (x1, max(y1 - 6, 14)), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (255, 160, 0), 2)
+        if pr.get("foot"):
+            fx, fy = [int(v) for v in pr["foot"]]
+            cv2.circle(img, (fx, fy), 5, (0, 255, 255), -1, cv2.LINE_AA)
+    for b in state.get("out_of_bounds", []):
+        x1, y1, x2, y2 = [int(v) for v in b]
+        cv2.rectangle(img, (x1, y1), (x2, y2), (0, 165, 255), 1)
+        cv2.putText(img, "persona (fuori mappa)", (x1, max(y1 - 6, 14)), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 165, 255), 1)
     for b in state.get("drivers", []):
         x1, y1, x2, y2 = [int(v) for v in b]
         cv2.rectangle(img, (x1, y1), (x2, y2), (160, 160, 160), 1)

@@ -92,3 +92,59 @@ def load_dxf(path, unit: float | None = None, default_height: float = 3.0, ignor
         bounds = bounds.convex_hull
     info = {"unit_m": k, "bounds_m": bounds.bounds, "occluders": len(occ), "layers": per_layer}
     return Scene(bounds, occ), info
+
+
+def scene_from_spec(spec: dict) -> Scene:
+    """Costruisce una ``Scene`` da specifica JSON (perimetro/bounds + ostacoli con w, d, height)."""
+    if "bounds" in spec and isinstance(spec["bounds"], (list, tuple)) and len(spec["bounds"]) >= 3:
+        bounds = Polygon([(float(p[0]), float(p[1])) for p in spec["bounds"]])
+    elif "perimetro" in spec:
+        x, y, w, d = (float(v) for v in spec["perimetro"])
+        if w <= 0 or d <= 0:
+            raise ValueError("Larghezza e lunghezza devono essere > 0")
+        bounds = box(x, y, x + w, y + d)
+    else:
+        raise ValueError("Perimetro mancante")
+    if not bounds.is_valid:
+        bounds = bounds.buffer(0)
+    if bounds.is_empty or bounds.area <= 0 or bounds.geom_type != "Polygon":
+        raise ValueError("Perimetro non valido")
+
+    occluders = []
+    for i, o in enumerate(spec.get("obstacles", spec.get("ostacoli", []))):
+        name = str(o.get("name") or o.get("nome") or f"ostacolo_{i + 1}").strip() or f"ostacolo_{i + 1}"
+        height = float(o.get("height", o.get("altezza", 1.8)))
+        if height <= 0:
+            raise ValueError("L'altezza deve essere > 0")
+        if "w" in o and "d" in o:
+            x, y, w, d = float(o.get("x", 0.0)), float(o.get("y", 0.0)), float(o["w"]), float(o["d"])
+            if w <= 0 or d <= 0:
+                raise ValueError("Larghezza e lunghezza devono essere > 0")
+            poly = box(x, y, x + w, y + d)
+        elif "coords" in o and len(o["coords"]) >= 3:
+            poly = Polygon([(float(p[0]), float(p[1])) for p in o["coords"]])
+            if not poly.is_valid:
+                poly = poly.buffer(0)
+            if poly.is_empty or poly.area <= 0:
+                raise ValueError("Ostacolo non valido")
+        else:
+            raise ValueError("Ostacolo senza dimensioni valide")
+        occluders.append(Occluder(name, poly, height))
+    return Scene(bounds, occluders)
+
+
+def save_dxf(scene: Scene, path) -> None:
+    """Salva una ``Scene`` in DXF (metri) con layer PERIMETRO e <NOME>_H<altezza>."""
+    doc = ezdxf.new("R2010", setup=True)
+    doc.header["$INSUNITS"] = 6  # metri
+    msp = doc.modelspace()
+    if "PERIMETRO" not in doc.layers:
+        doc.layers.add("PERIMETRO")
+    msp.add_lwpolyline(list(scene.bounds.exterior.coords)[:-1], close=True, dxfattribs={"layer": "PERIMETRO"})
+    for o in scene.occluders:
+        base = re.sub(r"[^A-Za-z0-9]+", "_", re.sub(r"#\d+$", "", o.name)).strip("_").upper() or "OSTACOLO"
+        layer = f"{base}_H{float(o.height):.2f}"
+        if layer not in doc.layers:
+            doc.layers.add(layer)
+        msp.add_lwpolyline(list(o.poly.exterior.coords)[:-1], close=True, dxfattribs={"layer": layer})
+    doc.saveas(path)

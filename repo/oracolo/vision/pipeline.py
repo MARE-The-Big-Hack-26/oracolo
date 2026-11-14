@@ -61,6 +61,11 @@ class LivePipeline:
         self.set_calibration(calib)
 
     # ---- calibrazione --------------------------------------------------------------------
+    def set_scene(self, scene) -> None:
+        self.scene = scene
+        self._walkable = scene.walkable()
+        self.set_calibration(self.calib)
+
     def set_calibration(self, calib) -> None:
         self.calib = calib
         self.version += 1
@@ -106,15 +111,31 @@ class LivePipeline:
     def process(self, frame, t: float, frame_age: float = 0.0) -> dict:
         cal = self.calib
         state = {"t": round(t, 3), "calibrated": cal is not None, "version": self.version}
+        health = frame_health(frame)
+        vd = self.marker.detect(frame)
+        raw_persons = self.persons.detect(frame)
         if cal is None:
+            state["health"] = round(health, 2)
+            state["frame_age"] = round(frame_age, 3)
+            state["persons"] = [
+                {
+                    "id": i + 1,
+                    "xy": None,
+                    "speed": 0.0,
+                    "conf": round(float(d.conf), 2),
+                    "box": [round(v, 1) for v in d.box],
+                    "foot": [round(float(d.foot[0]), 1), round(float(d.foot[1]), 1)],
+                }
+                for i, d in enumerate(raw_persons)
+            ]
+            best_m = max(vd, key=lambda d: (d.box[2] - d.box[0]) * (d.box[3] - d.box[1])) if vd else None
+            state["uncalibrated_marker"] = [round(v, 1) for v in best_m.box] if best_m else None
             return state
         fh, fw = frame.shape[:2]
         k = cal.image_size[0] / fw
-        health = frame_health(frame)
-        bounds_buf = self.scene.bounds.buffer(1.0)
+        bounds_buf = self.scene.bounds.buffer(1.5)
 
         # muletto (sedia con marker)
-        vd = self.marker.detect(frame)
         if vd:
             d = max(vd, key=lambda d: (d.box[2] - d.box[0]) * (d.box[3] - d.box[1]))
             c = cal.to_world(d.foot[0] * k, d.foot[1] * k, d.height)
@@ -124,10 +145,13 @@ class LivePipeline:
         pose = self.vtrack.pose(t)
 
         # persone
-        meas, box_of, drivers = [], {}, []
-        for d in self.persons.detect(frame):
+        meas, box_of, drivers, out_of_bounds = [], {}, [], []
+        for d in raw_persons:
             xy = cal.to_world(d.foot[0] * k, d.foot[1] * k, 0.0)
-            if not all(map(math.isfinite, xy)) or not bounds_buf.contains(Point(xy)):
+            if not all(map(math.isfinite, xy)):
+                continue
+            if not bounds_buf.contains(Point(xy)):
+                out_of_bounds.append([round(v, 1) for v in d.box])
                 continue
             if pose is not None and pose.tracked and self._is_driver(xy, pose):
                 drivers.append([round(v, 1) for v in d.box])
@@ -162,12 +186,13 @@ class LivePipeline:
             d = box_of.get(tr.xy)
             persons.append({"id": tr.id, "xy": [round(tr.xy[0], 2), round(tr.xy[1], 2)], "speed": round(tr.speed, 2),
                             "conf": round(float(tr.conf), 2),
-                            "box": [round(v, 1) for v in d.box] if d is not None else None})
+                            "box": [round(v, 1) for v in d.box] if d is not None else None,
+                            "foot": [round(float(d.foot[0]), 1), round(float(d.foot[1]), 1)] if d is not None else None})
         state.update({
             "vehicle": None if pose is None else {"xy": [round(pose.xy[0], 2), round(pose.xy[1], 2)],
                                                  "heading": round(pose.heading, 3), "speed": round(pose.speed, 2),
                                                  "tracked": pose.tracked},
-            "persons": persons, "drivers": drivers,
+            "persons": persons, "drivers": drivers, "out_of_bounds": out_of_bounds,
             "decision": None if decision is None else {
                 "limit": round(decision.limit, 2), "level": decision.level, "level_name": LEVEL_NAMES[decision.level],
                 "cause": decision.cause, "cause_it": CAUSE_IT.get(decision.cause, decision.cause)},
