@@ -1,0 +1,10 @@
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/
+out/
+*.mov
+*.mp4
+.DS_Store
+# dati grezzi di clip e video: non nel repo (troppo pesanti); tenere solo gli export leggeri
+data/raw/

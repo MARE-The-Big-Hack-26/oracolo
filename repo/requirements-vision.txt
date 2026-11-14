@@ -1,0 +1,6 @@
+# Solo per la pipeline reale con camera (non servono per simulazione e test)
+opencv-contrib-python>=4.9   # ArUco, omografia (se bastano i marker base, opencv-python)
+supervision>=0.22            # tracking/annotazioni (MIT)
+# rf-detr                    # rilevatore persone, Apache-2.0 (opzionale; NON ultralytics: AGPL-3.0)
+# asyncua                    # adattatore OPC UA (F2) - verificare licenza prima di dichiarare
+# pymodbus                   # adattatore Modbus TCP (F2) - verificare licenza prima di dichiarare
