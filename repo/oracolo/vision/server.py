@@ -22,6 +22,7 @@ import cv2
 import numpy as np
 
 from ..cab import CAUSE_IT
+from ..cad import save_dxf, scene_from_spec
 from .calib import Calibration
 from .pipeline import json_state
 from .viz import draw_overlay
@@ -31,9 +32,10 @@ WEB = Path(__file__).parent / "web"
 
 class LiveApp:
     def __init__(self, pipeline, calib_path="calib.json", jpeg_quality: int = 70, max_width: int = 960,
-                 stale_after: float = 0.6):
+                 stale_after: float = 0.6, dxf_path=None):
         self.pipe = pipeline
         self.calib_path = Path(calib_path)
+        self.dxf_path = Path(dxf_path) if dxf_path else None
         self.q, self.max_width = jpeg_quality, max_width
         self.cond = threading.Condition()
         self._raw = None  # (t_recv, jpeg bytes | ndarray)
@@ -125,8 +127,26 @@ class LiveApp:
             self.pipe.set_calibration(cal)
         return {"ok": True, "rms_m": round(cal.rms_m, 3)}
 
+    def apply_scene(self, body: dict) -> dict:
+        scene = scene_from_spec(body)
+        if self.dxf_path is not None:
+            save_dxf(scene, self.dxf_path)
+        with self.lock_pipe:
+            self.pipe.set_scene(scene)
+        return {"ok": True, "occluders": len(scene.occluders), "bounds_m": [round(v, 3) for v in scene.bounds.bounds]}
+
+
+def _qr_png(text: str) -> bytes:
+    qr = cv2.QRCodeEncoder.create().encode(text or "/camera")
+    padded = cv2.copyMakeBorder(qr, 2, 2, 2, 2, cv2.BORDER_CONSTANT, value=255)
+    img = cv2.resize(padded, (0, 0), fx=8, fy=8, interpolation=cv2.INTER_NEAREST)
+    ok, buf = cv2.imencode(".png", img)
+    return buf.tobytes() if ok else b""
+
 
 def make_handler(app: LiveApp, camera_url: str):
+    qr_bytes = _qr_png(camera_url)
+
     class H(BaseHTTPRequestHandler):
         protocol_version = "HTTP/1.1"
 
@@ -154,12 +174,18 @@ def make_handler(app: LiveApp, camera_url: str):
                 return self._page("camera.html")
             if path == "/calibrate":
                 return self._page("calibrate.html")
+            if path == "/room":
+                return self._page("room.html")
+            if path == "/room.js":
+                return self._send(200, (WEB / "room.js").read_bytes(), "application/javascript; charset=utf-8")
             if path == "/state":
                 return self._send(200, app.current_state(), "application/json")
             if path == "/scene":
                 info = app.pipe.scene_info()
                 info["camera_url"] = camera_url
                 return self._send(200, json.dumps(info).encode(), "application/json")
+            if path == "/qr.png":
+                return self._send(200, qr_bytes, "image/png")
             if path == "/snapshot.jpg":
                 if not app.snapshot:
                     return self._send(404, b"nessun frame ricevuto")
@@ -197,6 +223,12 @@ def make_handler(app: LiveApp, camera_url: str):
                     out = app.apply_calibration(json.loads(body))
                     return self._send(200, json.dumps(out).encode(), "application/json")
                 except (ValueError, KeyError, cv2.error) as e:
+                    return self._send(400, json.dumps({"ok": False, "error": str(e)}).encode(), "application/json")
+            if self.path == "/scene":
+                try:
+                    out = app.apply_scene(json.loads(body))
+                    return self._send(200, json.dumps(out).encode(), "application/json")
+                except (ValueError, KeyError) as e:
                     return self._send(400, json.dumps({"ok": False, "error": str(e)}).encode(), "application/json")
             return self._send(404, b"non trovato")
 

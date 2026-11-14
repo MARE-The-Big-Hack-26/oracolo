@@ -82,9 +82,14 @@ def test_velocita_misurata_del_muletto(room):
 
 
 def test_stato_senza_calibrazione(room):
-    pipe = LivePipeline(room, None)
+    det = Scripted()
+    det.people = [(2.5, 1.9)]
+    pipe = LivePipeline(room, None, person_detector=det)
     st = pipe.process(synth.render_frame(None), 0.0)
     assert st["calibrated"] is False
+    assert len(st["persons"]) == 1
+    assert st["persons"][0]["xy"] is None
+    assert st["persons"][0]["box"] is not None
 
 
 def test_marker_detector_ignora_altri_id():

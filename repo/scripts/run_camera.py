@@ -27,7 +27,8 @@ ap = argparse.ArgumentParser()
 ap.add_argument("--dxf", default=str(Path(__file__).resolve().parent.parent / "scenarios" / "stanza.dxf"))
 ap.add_argument("--calib", default="calib.json")
 ap.add_argument("--source", default="stream", help="stream | video:PERCORSO | cam:INDICE")
-ap.add_argument("--detector", default="hog", help="hog | rfdetr[:nano|small|base] | none")
+ap.add_argument("--detector", default="auto",
+                help="auto | yolo[:pose|11n|11s] | rfdetr[:nano|small|base] | hog | none")
 ap.add_argument("--port", type=int, default=8443)
 ap.add_argument("--http", action="store_true", help="senza HTTPS (solo prove sul Mac: l'iPhone richiede HTTPS)")
 ap.add_argument("--certs", default="certs")
@@ -53,13 +54,16 @@ PROFILES = {
     "sedia": VehicleParams(v_max=1.0, a_brake=1.2, t_sys=0.4, t_act=0.1, margin=0.3, half_width=0.3, horizon=3.0),
     "magazzino": VehicleParams(),
 }
+person_det = build_person_detector(a.detector)
+det_desc = f"{type(person_det).__name__}" + (f" ({person_det.weights}, {person_det.device})" if hasattr(person_det, "weights") else "")
+print(f"Rilevatore persone: {det_desc}")
 pipe = LivePipeline(scene, calib, params=PROFILES[a.profile], ped=PedParams(v_walk=1.3, radius=0.3),
-                    person_detector=build_person_detector(a.detector),
+                    person_detector=person_det,
                     marker=MarkerDetector(a.marker_id, height=a.marker_h))
 ip = lan_ip()
 scheme = "http" if a.http else "https"
 cam_url = f"{scheme}://{ip}:{a.port}/camera"
-app = LiveApp(pipe, a.calib)
+app = LiveApp(pipe, a.calib, dxf_path=a.dxf)
 cert, key = (None, None) if a.http else ensure_cert(a.certs)
 serve(app, "0.0.0.0", a.port, cert, key, cam_url)
 
@@ -89,6 +93,7 @@ if a.source != "stream":
     threading.Thread(target=capture, args=(kind, arg), daemon=True).start()
 
 print(f"\nPannello (Mac):  {scheme}://localhost:{a.port}/")
+print(f"Planimetria:     {scheme}://localhost:{a.port}/room")
 print(f"iPhone:          {cam_url}")
 print(f"Calibrazione:    {scheme}://localhost:{a.port}/calibrate\n(Ctrl+C per fermare)")
 try:
