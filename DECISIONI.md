@@ -12,5 +12,12 @@
 | 14/11 | Simulazione: Mac → iPhone (Safari) come ricevitore con watchdog nella pagina | Nessun carrello reale disponibile | team |
 | 14/11 | Collisione = contatto con mezzo in moto (v > 0,15 m/s); sfioramenti a parte | Un pedone che urta un mezzo già fermo non è un rischio cinetico; dichiarare entrambi | team |
 | 14/11 | Nessuna nuova funzione dopo il blocco del codice (dom 07:30) | Rischio consegna | team |
+| 14/11 | Camera = iPhone su treppiede che invia i frame al Mac via pagina web HTTPS | iPhone dell'organizzazione (Apple ID diverso): niente Continuity Camera | team |
+| 14/11 | Riconoscimento con modello locale sul Mac (RF-DETR/HOG), non API cloud | Latenza e rete non adatte a un comando di frenata | team |
+| 14/11 | Muletto simulato = sedia con marker ArUco; conducente escluso dai pedoni | Identità e direzione certe; chi spinge non è un pedone da proteggere | team |
+| 14/11 | Il muletto non ha display; pannello di controllo solo sul Mac | Nel reale arriva solo il comando (relè/PLC) | team |
+| 14/11 | Mappa stanza: misure o scansione LiDAR → DXF; calibrazione camera con 4 coppie di punti | Non esiste il CAD della stanza; si evita il metro per la camera | team |
+| 14/11 | Telefoni/tag UWB (stile ELOshield): fuori scopo, solo estensione futura | La challenge è visione; i tag non vedono chi non li porta | team |
+| 14/11 | Repo pubblica: github.com/MARE-The-Big-Hack-26/oracolo | Tutti i colleghi lavorano sugli stessi file | team |
 
 Aggiungere una riga a ogni scelta importante (data, motivo, chi).

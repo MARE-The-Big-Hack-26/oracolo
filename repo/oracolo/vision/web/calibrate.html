@@ -1,0 +1,52 @@
+<!doctype html><html lang="it"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Oracolo – calibrazione</title><style>
+*{box-sizing:border-box}body{margin:0;background:#0f1115;color:#e8eaed;font-family:-apple-system,Helvetica,Arial,sans-serif}
+header{padding:10px 16px;background:#1b2330;display:flex;gap:14px;align-items:center;flex-wrap:wrap}
+header b{font-size:17px}button,input{font-size:14px;padding:7px 12px;border-radius:8px;border:1px solid #3a4152;background:#232a38;color:#e8eaed}
+button.pri{background:#2563eb;border-color:#2563eb}button:disabled{opacity:.4}
+#cols{display:flex;gap:10px;padding:10px}.box{flex:1;background:#171a21;border-radius:10px;padding:8px}
+canvas{width:100%;display:block;cursor:crosshair;background:#000;border-radius:6px}
+#msg{padding:6px 16px;min-height:28px;font-size:14px}.hint{opacity:.75;font-size:13px;padding:0 16px 10px}
+</style></head><body>
+<header><b>Calibrazione</b><span id="step">1) Clicca un punto A TERRA sul video…</span>
+<button id="refresh">Aggiorna immagine</button><button id="undo">Annulla ultimo</button><button id="reset">Ricomincia</button>
+<label>altezza camera (m) <input id="ch" type="number" step="0.05" value="1.8" style="width:80px"></label>
+<button id="setcam">Imposta posizione camera sulla mappa</button><button id="save" class="pri" disabled>Calcola e salva</button><a href="/" style="color:#8ab4f8">← pannello</a></header>
+<div id="msg"></div>
+<div id="cols"><div class="box"><div class="hint">VIDEO: clicca punti a terra riconoscibili (angoli stanza, base di un mobile)</div><canvas id="img"></canvas></div>
+<div class="box"><div class="hint">MAPPA: clicca lo stesso punto sulla planimetria</div><canvas id="map"></canvas></div></div>
+<div class="hint">Servono almeno 4 punti, sparsi (non su una linea). Poi segna dove sta la camera sulla mappa e a che altezza.</div>
+<script>
+let scene=null, im=new Image(), imgPts=[], worldPts=[], pending=null, cam=null, camMode=false;
+const ci=document.getElementById('img'), cm=document.getElementById('map'), msg=t=>document.getElementById('msg').textContent=t;
+function mview(){const xs=scene.bounds.map(p=>p[0]),ys=scene.bounds.map(p=>p[1]);const minx=Math.min(...xs),maxx=Math.max(...xs),miny=Math.min(...ys),maxy=Math.max(...ys);
+  const w=cm.width,h=cm.height,pad=20,sc=Math.min((w-2*pad)/(maxx-minx),(h-2*pad)/(maxy-miny));const ox=(w-sc*(maxx-minx))/2,oy=(h-sc*(maxy-miny))/2;
+  return {sc,X:x=>ox+(x-minx)*sc,Y:y=>h-oy-(y-miny)*sc,ix:px=>(px-ox)/sc+minx,iy:py=>(h-oy-py)/sc+miny};}
+function drawImg(){if(!im.naturalWidth){ci.width=640;ci.height=360;const c=ci.getContext('2d');c.fillStyle='#000';c.fillRect(0,0,640,360);c.fillStyle='#aaa';c.font='16px sans-serif';c.fillText('Nessun frame: apri /camera sull\'iPhone, poi «Aggiorna immagine»',20,180);return;}
+  ci.width=im.naturalWidth;ci.height=im.naturalHeight;const c=ci.getContext('2d');c.drawImage(im,0,0);
+  imgPts.forEach((p,i)=>{c.fillStyle='#ff3b30';c.beginPath();c.arc(p[0],p[1],8,0,7);c.fill();c.fillStyle='#fff';c.font='bold 22px sans-serif';c.fillText(String(i+1),p[0]+10,p[1]-10);});
+  if(pending){c.strokeStyle='#ff3b30';c.lineWidth=3;c.beginPath();c.arc(pending[0],pending[1],12,0,7);c.stroke();}}
+function drawMap(){if(!scene)return;cm.width=900;cm.height=Math.round(900*0.72);const c=cm.getContext('2d'),v=mview();c.fillStyle='#10131a';c.fillRect(0,0,cm.width,cm.height);
+  const poly=(pts,f,s)=>{c.beginPath();pts.forEach((p,i)=>i?c.lineTo(v.X(p[0]),v.Y(p[1])):c.moveTo(v.X(p[0]),v.Y(p[1])));c.closePath();if(f){c.fillStyle=f;c.fill();}c.strokeStyle=s;c.lineWidth=2;c.stroke();};
+  poly(scene.bounds,'#161a22','#9aa0a6');scene.occluders.forEach(o=>{if(o.coords.length)poly(o.coords,'#3b2a14','#ffa500');});
+  worldPts.forEach((p,i)=>{c.fillStyle='#3b82f6';c.beginPath();c.arc(v.X(p[0]),v.Y(p[1]),8,0,7);c.fill();c.fillStyle='#fff';c.font='bold 20px sans-serif';c.fillText(String(i+1),v.X(p[0])+10,v.Y(p[1])-10);});
+  if(cam){c.fillStyle='#34c759';c.fillRect(v.X(cam[0])-8,v.Y(cam[1])-8,16,16);c.fillStyle='#fff';c.font='16px sans-serif';c.fillText('camera',v.X(cam[0])+12,v.Y(cam[1])-10);}}
+function upd(){const n=imgPts.length;document.getElementById('save').disabled=!(n>=4&&worldPts.length===n&&cam&&!pending);
+  document.getElementById('step').textContent=camMode?'Clicca sulla MAPPA dove sta la camera':(pending?`${n+1}) ora clicca lo stesso punto sulla MAPPA`:`${n+1}) clicca un punto A TERRA sul video`);drawImg();drawMap();}
+function pos(e,cv){const r=cv.getBoundingClientRect();return [(e.clientX-r.left)*cv.width/r.width,(e.clientY-r.top)*cv.height/r.height];}
+ci.addEventListener('click',e=>{if(camMode||pending||!im.naturalWidth)return;pending=pos(e,ci);upd();});
+cm.addEventListener('click',e=>{if(!scene)return;const v=mview(),[px,py]=pos(e,cm),w=[v.ix(px),v.iy(py)];
+  if(camMode){cam=w;camMode=false;upd();return;}
+  if(!pending){msg('Prima clicca un punto sul video.');return;}imgPts.push(pending);worldPts.push(w);pending=null;msg('');upd();});
+document.getElementById('undo').onclick=()=>{if(pending)pending=null;else{imgPts.pop();worldPts.pop();}upd();};
+document.getElementById('reset').onclick=()=>{imgPts=[];worldPts=[];pending=null;cam=null;upd();};
+document.getElementById('setcam').onclick=()=>{camMode=true;upd();};
+document.getElementById('refresh').onclick=()=>{im=new Image();im.onload=()=>{imgPts=[];worldPts=[];pending=null;upd();msg('Immagine aggiornata: i punti vanno rifatti.');};im.onerror=()=>{msg('Nessun frame ricevuto.');upd();};im.src='/snapshot.jpg?_='+Date.now();};
+document.getElementById('save').onclick=async()=>{
+  const body={img:imgPts,world:worldPts,image_size:[im.naturalWidth,im.naturalHeight],cam_xy:cam,cam_h:parseFloat(document.getElementById('ch').value)};
+  try{const r=await fetch('/calib',{method:'POST',body:JSON.stringify(body)});const j=await r.json();
+    msg(j.ok?`Calibrazione salvata. Errore medio sui punti: ${(j.rms_m*100).toFixed(1)} cm. Torna al pannello.`:('Errore: '+j.error));}catch(e){msg('Errore di rete: '+e);}};
+(async()=>{try{const r=await fetch('/scene');scene=await r.json();}catch(e){msg('Planimetria non disponibile');}
+  im.onload=upd;im.onerror=upd;im.src='/snapshot.jpg?_='+Date.now();upd();})();
+</script></body></html>

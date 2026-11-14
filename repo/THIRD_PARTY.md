@@ -11,7 +11,8 @@ Le licenze sotto sono quelle note al momento della stesura: ricontrollare sul si
 | matplotlib | rendering offline | licenza tipo BSD (matplotlib) | |
 | ezdxf | lettura del CAD (DXF) | MIT | |
 | pytest | test | MIT | |
-| OpenCV (opzionale) | omografia, ArUco | Apache-2.0 (4.5+) | |
+| opencv-python-headless | omografia, ArUco, HOG persone, JPEG | Apache-2.0 (4.5+) | |
+| cryptography | certificato HTTPS autofirmato | Apache-2.0 / BSD | |
 | supervision (opzionale) | tracking/annotazioni | MIT | |
 | RF-DETR (opzionale) | rilevatore persone | Apache-2.0 | |
 

@@ -4,3 +4,5 @@ shapely>=2.0
 matplotlib>=3.8
 ezdxf>=1.1
 pytest>=8.0
+opencv-python-headless>=4.9
+cryptography>=42

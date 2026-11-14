@@ -1,0 +1,66 @@
+<!doctype html><html lang="it"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Oracolo – pannello</title><style>
+*{box-sizing:border-box}html,body{margin:0;height:100%;background:#0f1115;color:#e8eaed;font-family:-apple-system,Helvetica,Arial,sans-serif}
+#bar{display:flex;align-items:center;gap:18px;padding:10px 16px;background:#1b8a3a;transition:background .12s;font-weight:700}
+#lvl{font-size:26px;letter-spacing:.03em}#lim{font-size:22px}#cause{font-size:17px;font-weight:500;opacity:.95;flex:1}
+#bar a{color:#fff;font-weight:500;font-size:14px;opacity:.9}
+#main{display:flex;gap:10px;padding:10px;height:calc(100% - 96px)}
+.box{background:#171a21;border-radius:10px;overflow:hidden;position:relative}
+#vid{flex:1.25;display:flex;align-items:center;justify-content:center}#vid img{width:100%;height:100%;object-fit:contain}
+#mapbox{flex:1}#map{width:100%;height:100%;display:block}
+#foot{display:flex;gap:18px;padding:0 16px;font-size:13px;opacity:.85;height:28px;align-items:center;flex-wrap:wrap}
+.k{opacity:.6}
+#nocal{position:absolute;top:10px;left:10px;background:#b3261e;color:#fff;padding:6px 10px;border-radius:8px;display:none;font-size:14px}
+</style></head><body>
+<div id="bar"><span id="lvl">—</span><span id="lim"></span><span id="cause">in attesa di frame…</span>
+<a href="/calibrate">Calibra camera</a></div>
+<div id="main"><div class="box" id="vid"><img id="v" src="/video.mjpg"><div id="nocal">Non calibrato: apri «Calibra camera»</div></div>
+<div class="box" id="mapbox"><canvas id="map"></canvas></div></div>
+<div id="foot"><span><span class="k">fps</span> <b id="fps">–</b></span><span><span class="k">latenza</span> <b id="lat">–</b></span>
+<span><span class="k">persone</span> <b id="np">0</b></span><span><span class="k">velocità muletto</span> <b id="vs">–</b></span>
+<span><span class="k">violazioni</span> <b id="vio">0</b></span><span><span class="k">iPhone</span> <b id="cam"></b></span></div>
+<script>
+const COL=["#1b8a3a","#b58900","#cc6a10","#b3261e"], NAME=["NORMALE","ATTENZIONE","RALLENTA","FERMA"];
+let scene=null, ver=-1, last=null;
+const cv=document.getElementById('map'), ctx=cv.getContext('2d');
+function view(){const r=cv.getBoundingClientRect(),dpr=window.devicePixelRatio||1;cv.width=r.width*dpr;cv.height=r.height*dpr;
+  const xs=scene.bounds.map(p=>p[0]),ys=scene.bounds.map(p=>p[1]);const minx=Math.min(...xs),maxx=Math.max(...xs),miny=Math.min(...ys),maxy=Math.max(...ys);
+  const pad=24*dpr,sc=Math.min((cv.width-2*pad)/(maxx-minx),(cv.height-2*pad)/(maxy-miny));
+  const ox=(cv.width-sc*(maxx-minx))/2,oy=(cv.height-sc*(maxy-miny))/2;
+  return {sc,dpr,X:x=>ox+(x-minx)*sc,Y:y=>cv.height-oy-(y-miny)*sc};}
+function poly(v,pts,fill,stroke,lw){ctx.beginPath();pts.forEach((p,i)=>i?ctx.lineTo(v.X(p[0]),v.Y(p[1])):ctx.moveTo(v.X(p[0]),v.Y(p[1])));ctx.closePath();
+  if(fill){ctx.fillStyle=fill;ctx.fill();}if(stroke){ctx.strokeStyle=stroke;ctx.lineWidth=lw||1;ctx.stroke();}}
+function draw(){if(!scene)return;const v=view();ctx.clearRect(0,0,cv.width,cv.height);
+  poly(v,scene.bounds,'#10131a','#9aa0a6',2*v.dpr);
+  if(last&&last.fog){const f=last.fog,bin=atob(f.b64);
+    for(let iy=0;iy<f.ny;iy++)for(let ix=0;ix<f.nx;ix++){const s=bin.charCodeAt(iy*f.nx+ix);if(!s)continue;
+      const col=s===1?'rgba(27,138,58,.35)':s===2?'rgba(120,140,160,.20)':s===3?'rgba(255,200,0,.28)':'rgba(255,40,40,.55)';
+      ctx.fillStyle=col;const x0=v.X(f.minx+ix*f.res),y0=v.Y(f.miny+iy*f.res),x1=v.X(f.minx+(ix+1)*f.res),y1=v.Y(f.miny+(iy+1)*f.res);
+      ctx.fillRect(Math.min(x0,x1),Math.min(y0,y1),Math.abs(x1-x0)+1,Math.abs(y1-y0)+1);}}
+  scene.occluders.forEach(o=>{if(o.coords.length)poly(v,o.coords,'#3b2a14','#ffa500',2*v.dpr);});
+  if(scene.fov)poly(v,scene.fov,null,'rgba(120,200,255,.7)',1.5*v.dpr);
+  if(scene.cam){const c=scene.cam.xy;ctx.fillStyle='#8ab4f8';ctx.beginPath();ctx.arc(v.X(c[0]),v.Y(c[1]),7*v.dpr,0,7);ctx.fill();
+    ctx.fillStyle='#8ab4f8';ctx.font=(12*v.dpr)+'px sans-serif';ctx.fillText('camera',v.X(c[0])+10*v.dpr,v.Y(c[1])-8*v.dpr);}
+  if(!last)return;const lv=last.decision?last.decision.level:0,col=COL[lv];
+  if(last.path&&last.path.length>1){ctx.beginPath();last.path.forEach((p,i)=>i?ctx.lineTo(v.X(p[0]),v.Y(p[1])):ctx.moveTo(v.X(p[0]),v.Y(p[1])));
+    ctx.strokeStyle=col;ctx.lineWidth=5*v.dpr;ctx.stroke();}
+  (last.persons||[]).forEach(p=>{ctx.fillStyle='#ffa000';ctx.beginPath();ctx.arc(v.X(p.xy[0]),v.Y(p.xy[1]),8*v.dpr,0,7);ctx.fill();
+    ctx.fillStyle='#fff';ctx.font=(12*v.dpr)+'px sans-serif';ctx.fillText('P'+p.id,v.X(p.xy[0])+10*v.dpr,v.Y(p.xy[1])-8*v.dpr);});
+  if(last.vehicle){const q=last.vehicle,x=v.X(q.xy[0]),y=v.Y(q.xy[1]);ctx.save();ctx.translate(x,y);ctx.rotate(-q.heading);
+    ctx.fillStyle=q.tracked?col:'#777';ctx.fillRect(-12*v.dpr,-9*v.dpr,24*v.dpr,18*v.dpr);
+    ctx.fillStyle='#fff';ctx.beginPath();ctx.moveTo(18*v.dpr,0);ctx.lineTo(8*v.dpr,-7*v.dpr);ctx.lineTo(8*v.dpr,7*v.dpr);ctx.fill();ctx.restore();}}
+async function loadScene(){try{const r=await fetch('/scene');scene=await r.json();document.getElementById('cam').textContent=scene.camera_url||'';
+  document.getElementById('nocal').style.display=scene.calibrated?'none':'block';draw();}catch(e){}}
+async function poll(){try{const r=await fetch('/state?_='+Date.now(),{cache:'no-store'});last=await r.json();
+  if(last.version!==undefined&&last.version!==ver){ver=last.version;loadScene();}
+  const d=last.decision,bar=document.getElementById('bar');
+  if(d){bar.style.background=COL[d.level];document.getElementById('lvl').textContent=NAME[d.level];
+    document.getElementById('lim').textContent=(d.limit*3.6).toFixed(1)+' km/h';document.getElementById('cause').textContent=d.cause_it;}
+  else{bar.style.background='#444';document.getElementById('lvl').textContent=last.calibrated?'MULETTO NON RILEVATO':'NON CALIBRATO';
+    document.getElementById('lim').textContent='';document.getElementById('cause').textContent=last.calibrated?'Marker non visibile nell\'inquadratura':'Calibra la camera';}
+  document.getElementById('fps').textContent=last.fps??'–';document.getElementById('lat').textContent=last.latency!==undefined?Math.round(last.latency*1000)+' ms':'–';
+  document.getElementById('np').textContent=(last.persons||[]).length;document.getElementById('vio').textContent=last.violations??0;
+  document.getElementById('vs').textContent=last.vehicle?(last.vehicle.speed*3.6).toFixed(1)+' km/h':'–';draw();}catch(e){}}
+window.addEventListener('resize',draw);loadScene();setInterval(poll,120);
+</script></body></html>

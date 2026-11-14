@@ -1,0 +1,98 @@
+"""Pipeline live con camera fissa (iPhone su treppiede) -> pannello sul Mac.
+
+    PYTHONPATH=. python scripts/run_camera.py --dxf scenarios/stanza.dxf
+    -> sul Mac:   https://localhost:8443/            (pannello)
+    -> sull'iPhone: https://<IP-del-Mac>:8443/camera   (accetta l'avviso del certificato, premi Avvia)
+    -> prima volta: https://localhost:8443/calibrate
+
+Sorgenti alternative (piano B): --source video:clip.mp4 [--loop]   --source cam:0
+"""
+import argparse
+import sys
+import threading
+import time
+from pathlib import Path
+
+import cv2
+
+from oracolo.cad import load_dxf
+from oracolo.policy import PedParams, VehicleParams
+from oracolo.vision.calib import Calibration
+from oracolo.vision.certs import ensure_cert, lan_ip
+from oracolo.vision.detectors import MarkerDetector, build_person_detector
+from oracolo.vision.pipeline import LivePipeline
+from oracolo.vision.server import LiveApp, serve
+
+ap = argparse.ArgumentParser()
+ap.add_argument("--dxf", default=str(Path(__file__).resolve().parent.parent / "scenarios" / "stanza.dxf"))
+ap.add_argument("--calib", default="calib.json")
+ap.add_argument("--source", default="stream", help="stream | video:PERCORSO | cam:INDICE")
+ap.add_argument("--detector", default="hog", help="hog | rfdetr[:nano|small|base] | none")
+ap.add_argument("--port", type=int, default=8443)
+ap.add_argument("--http", action="store_true", help="senza HTTPS (solo prove sul Mac: l'iPhone richiede HTTPS)")
+ap.add_argument("--certs", default="certs")
+ap.add_argument("--marker-id", type=int, default=0)
+ap.add_argument("--marker-h", type=float, default=0.45, help="quota del marker sulla sedia (m)")
+ap.add_argument("--default-height", type=float, default=3.0, help="altezza (m) degli ostacoli senza suffisso _H")
+ap.add_argument("--lines-as-walls", action="store_true", help="DXF di scansione LiDAR: LINE/polilinee aperte = muri")
+ap.add_argument("--profile", default="sedia", choices=["sedia", "magazzino"],
+                help="sedia: parametri in scala per la demo con la sedia; magazzino: carrello reale (8 km/h)")
+ap.add_argument("--loop", action="store_true")
+a = ap.parse_args()
+
+if not Path(a.dxf).exists():
+    sys.exit(f"DXF non trovato: {a.dxf}\nCrealo con: python scripts/make_room_dxf.py scenarios/stanza_esempio.json scenarios/stanza.dxf")
+scene, info = load_dxf(a.dxf, default_height=a.default_height, lines_as_walls=a.lines_as_walls)
+print(f"Planimetria: {a.dxf}  ostacoli={info['occluders']}  confini={tuple(round(v, 2) for v in info['bounds_m'])}")
+
+calib = Calibration.load(a.calib) if Path(a.calib).exists() else None
+print("Calibrazione:", f"caricata da {a.calib} (errore {calib.rms_m * 100:.1f} cm)" if calib else "assente: apri /calibrate")
+
+PROFILES = {
+    # sedia spinta a mano: ~1 m/s, ingombro 0,6 m, area di prova di pochi metri
+    "sedia": VehicleParams(v_max=1.0, a_brake=1.2, t_sys=0.4, t_act=0.1, margin=0.3, half_width=0.3, horizon=3.0),
+    "magazzino": VehicleParams(),
+}
+pipe = LivePipeline(scene, calib, params=PROFILES[a.profile], ped=PedParams(v_walk=1.3, radius=0.3),
+                    person_detector=build_person_detector(a.detector),
+                    marker=MarkerDetector(a.marker_id, height=a.marker_h))
+ip = lan_ip()
+scheme = "http" if a.http else "https"
+cam_url = f"{scheme}://{ip}:{a.port}/camera"
+app = LiveApp(pipe, a.calib)
+cert, key = (None, None) if a.http else ensure_cert(a.certs)
+serve(app, "0.0.0.0", a.port, cert, key, cam_url)
+
+
+def capture(kind: str, arg: str):
+    cap = cv2.VideoCapture(int(arg) if kind == "cam" else arg)
+    if not cap.isOpened():
+        print(f"ERRORE: impossibile aprire la sorgente {kind}:{arg}")
+        return
+    fps = cap.get(cv2.CAP_PROP_FPS) or 15.0
+    dt = 1.0 / min(max(fps, 5.0), 30.0)
+    while True:
+        t0 = time.monotonic()
+        ok, frame = cap.read()
+        if not ok:
+            if kind == "video" and a.loop:
+                cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
+                continue
+            time.sleep(0.5)
+            continue
+        app.push_frame(frame)
+        time.sleep(max(0.0, dt - (time.monotonic() - t0)))
+
+
+if a.source != "stream":
+    kind, _, arg = a.source.partition(":")
+    threading.Thread(target=capture, args=(kind, arg), daemon=True).start()
+
+print(f"\nPannello (Mac):  {scheme}://localhost:{a.port}/")
+print(f"iPhone:          {cam_url}")
+print(f"Calibrazione:    {scheme}://localhost:{a.port}/calibrate\n(Ctrl+C per fermare)")
+try:
+    while True:
+        time.sleep(1)
+except KeyboardInterrupt:
+    app.running = False

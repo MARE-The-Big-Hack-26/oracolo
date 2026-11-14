@@ -12,13 +12,21 @@
 ## Prova rapida
 ```bash
 pip install -r requirements.txt
-python -m pytest -q                 # 42 test
+python -m pytest -q                 # 67 test
 python -m oracolo.bench --runs 30   # tabella di confronto
 make frames                         # video planimetria + cabina (out/demo.mp4)
 make live                           # server per l'iPhone: apri http://<IP-del-Mac>:8000 in Safari
 python scripts/run_live.py --cut-at 7   # a t=7 s il collegamento cade: l'iPhone va in STOP da solo
 python scripts/make_sample_dxf.py       # rigenera il magazzino d'esempio; per il vostro: --dxf file.dxf
 ```
+
+## Pipeline con camera reale (iPhone su treppiede → pannello sul Mac)
+Vedi `docs/12-pipeline-reale.md`.
+```bash
+make room      # DXF della vostra area da scenarios/stanza_esempio.json
+make camera    # server HTTPS: Mac https://localhost:8443/  ·  iPhone https://<IP-Mac>:8443/camera
+```
+Riconosce persone (RF-DETR o HOG) e un muletto simulato da una sedia con marker ArUco; calibrazione guidata in `/calibrate`; pannello con CAD sovrapposto al video, zone non osservate, livello e limite.
 
 ## Livelli di pericolo
 | Livello | Significato | Azione |
