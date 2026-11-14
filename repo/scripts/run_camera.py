@@ -35,7 +35,7 @@ ap.add_argument("--room-file", default="planimetria.dxf",
                 help="dove si salva la planimetria (caricata o disegnata) in formato standard; non sovrascrive --dxf")
 ap.add_argument("--calib", default="calib.json")
 ap.add_argument("--anchors", default="anchors.json",
-                help="ancore ArUco a terra (id 10-13) con le coordinate nel CAD; si impostano anche da /calibrate")
+                help="ancore ArUco a terra (id 10-17) con le coordinate nel CAD; si impostano anche da /calibrate")
 ap.add_argument("--source", default="stream", help="stream | video:PERCORSO | cam:INDICE")
 ap.add_argument("--detector", default="auto",
                 help="auto | yolo[:pose|11n|11s] | rfdetr[:nano|small|base] | hog | none")

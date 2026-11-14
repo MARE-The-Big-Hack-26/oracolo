@@ -1,4 +1,4 @@
-"""Allineamento CAD <-> video con ancore ArUco a terra (id 10-13, DICT_4X4_50).
+"""Allineamento CAD <-> video con ancore ArUco a terra (id 10-17, DICT_4X4_50).
 
 Si incollano 3-4 marker a terra in punti NOTI del CAD (coordinate in metri nella planimetria
 normalizzata, origine (0,0)). Servono a due cose:
@@ -79,10 +79,10 @@ class AnchorSet:
         if not (0.03 <= size <= 2.0):
             raise ValueError(f"lato del marker {size} m non plausibile (0,03-2 m)")
         if len(anchors) < MIN_ANCHORS:
-            raise ValueError(f"servono almeno {MIN_ANCHORS} ancore (meglio 4: id 10-13)")
+            raise ValueError(f"servono almeno {MIN_ANCHORS} ancore (meglio 4-8: id 10-17)")
         for mid in anchors:
             if mid in forbidden_ids or not (0 <= mid < 50):
-                raise ValueError(f"id {mid} non valido (DICT_4X4_50; 0 è il muletto): usare 10-13")
+                raise ValueError(f"id {mid} non valido (DICT_4X4_50; 0 è il muletto): usare 10-17")
         if camera is not None and not (0.2 <= camera[2] <= 20):
             raise ValueError("altezza camera non plausibile")
         a = cls(size, anchors, camera)

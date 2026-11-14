@@ -7,7 +7,7 @@
     GET  /video.mjpg  video annotato (MJPEG)
     GET  /state       stato JSON     GET /scene  planimetria + campo visivo + camera
     GET  /snapshot.jpg ultimo frame grezzo      POST /calib  salva la calibrazione
-    GET/POST /anchors  ancore ArUco a terra (id 10-13, coordinate nel CAD)    POST /calib_anchors  calibra dalle ancore
+    GET/POST /anchors  ancore ArUco a terra (id 10-17, coordinate nel CAD)    POST /calib_anchors  calibra dalle ancore
     POST /dxf         carica un DXF (corpo = file): normalizzazione + nuova planimetria (solo DXF, non DWG)
 Solo libreria standard (+ OpenCV, NumPy già in uso).
 """

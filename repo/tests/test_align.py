@@ -318,3 +318,20 @@ def test_marker_print_script_makes_detectable_exact_size_markers(tmp_path):
     bad = subprocess.run([sys.executable, "-I", str(root / "scripts" / "make_anchor_markers.py"), "--paper", "A4",
                           "--black-cm", "20", "--out", str(tmp_path)], capture_output=True, text=True)
     assert bad.returncode != 0 and "non entra" in (bad.stderr + bad.stdout)
+
+
+def test_script_marker_pagina_piena(tmp_path):
+    import subprocess
+    import sys
+    from pathlib import Path
+    root = Path(__file__).resolve().parent.parent
+    r = subprocess.run([sys.executable, "-I", str(root / "scripts" / "make_anchor_markers.py"), "--ids", "10", "17", "--paper", "A4",
+                        "--fill", "--out", str(tmp_path)], capture_output=True, text=True)
+    assert r.returncode == 0, r.stderr
+    det = cv2.aruco.ArucoDetector(cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_4X4_50))
+    for mid in (10, 17):
+        img = cv2.imread(str(tmp_path / f"marker_ancora_ID{mid}_pagina_piena_A4.png"), 0)
+        corners, ids, _ = det.detectMarkers(cv2.resize(img, None, fx=0.25, fy=0.25, interpolation=cv2.INTER_AREA))
+        assert ids is not None and ids.ravel().tolist() == [mid]
+        side_cm = float(np.linalg.norm(corners[0][0][0] - corners[0][0][1])) * 4 / 300 * 2.54
+        assert 16.0 < side_cm < 16.8  # A4: il nero è il più grande possibile per la larghezza della pagina

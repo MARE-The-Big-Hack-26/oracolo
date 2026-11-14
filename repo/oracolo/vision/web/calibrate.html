@@ -22,7 +22,7 @@ canvas{width:100%;display:block;cursor:crosshair;background:#000;border-radius:6
 <div id="qrcard"><b>Connetti iPhone</b><img src="/qr.png" alt="QR Camera"><div class="u" id="qru"></div></div>
 <div id="msg"></div>
 <details id="anch"><summary><b>Ancore a terra</b> (calibrazione automatica, senza clic sul video) <span id="anst"></span></summary>
-<div class="hint" style="padding:6px 0">Incolla 3-4 marker ArUco (<b>id 10-13</b>, dizionario 4x4) a terra in punti NOTI della planimetria, sparsi e ben visibili; il lato SUPERIORE del marker deve guardare verso +Y della mappa (se è ruotato, scrivi i gradi in senso antiorario). Scrivi il CENTRO di ogni marker in metri (o premi «sulla mappa» e clicca). Poi indica dove sta la camera (x, y, altezza da terra). La calibrazione a 4 clic qui sotto resta valida come alternativa.</div>
+<div class="hint" style="padding:6px 0">Incolla 4-8 marker ArUco (<b>id 10-17</b>, dizionario 4x4; ne bastano 3, più sono meglio si scoprono errori di misura) a terra in punti NOTI della planimetria, sparsi e ben visibili; il lato SUPERIORE del marker deve guardare verso +Y della mappa (se è ruotato, scrivi i gradi in senso antiorario). Scrivi il CENTRO di ogni marker in metri (o premi «sulla mappa» e clicca). Poi indica dove sta la camera (x, y, altezza da terra). La calibrazione a 4 clic qui sotto resta valida come alternativa.</div>
 <div class="r"><label>lato del quadrato NERO (cm) <input id="ansz" type="number" step="0.5" value="20"></label></div>
 <div id="anrows"></div>
 <div class="r"><b>camera</b><label>x <input id="acx" type="number" step="0.01"></label><label>y <input id="acy" type="number" step="0.01"></label><label>altezza <input id="ach" type="number" step="0.05"></label>
@@ -80,7 +80,7 @@ document.getElementById('save').onclick=saveCalib;
   im.onload=()=>{qrc.style.display='none';upd();};im.onerror=()=>{qrc.style.display='block';upd();};im.src='/snapshot.jpg?_='+Date.now();upd();})();
 </script><script>
 // ---- ancore a terra ---------------------------------------------------------------------------------
-const ANCH_IDS=[10,11,12,13], $=id=>document.getElementById(id);
+const ANCH_IDS=[10,11,12,13,14,15,16,17], $=id=>document.getElementById(id);
 $('anrows').innerHTML=ANCH_IDS.map(i=>`<div class="r"><b>id ${i}</b><label>x <input id="ax${i}" type="number" step="0.01"></label><label>y <input id="ay${i}" type="number" step="0.01"></label><label>rot ° <input id="ar${i}" type="number" step="1" value="0" style="width:60px"></label><button type="button" data-pick="${i}">sulla mappa</button></div>`).join('');
 document.querySelectorAll('[data-pick]').forEach(b=>b.onclick=()=>{pickAnchor=b.dataset.pick;msg('Clicca sulla MAPPA il centro del marker id '+b.dataset.pick+'.');});
 function anchorBody(){const o={};ANCH_IDS.forEach(i=>{const x=parseFloat($('ax'+i).value),y=parseFloat($('ay'+i).value);if(isFinite(x)&&isFinite(y))o[i]={x,y,rot_deg:parseFloat($('ar'+i).value)||0};});
