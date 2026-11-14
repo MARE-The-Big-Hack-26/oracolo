@@ -16,9 +16,10 @@ Il muletto non ha display: il segnale è solo il comando (limite + livello). La 
 ## Avvio (sul Mac)
 ```bash
 pip install -r requirements.txt
-make room                              # genera scenarios/stanza.dxf da scenarios/stanza_esempio.json (misure della vostra area)
-make camera                            # avvia il server (HTTPS, porta 8443)
+make camera                            # avvia il server (HTTPS, porta 8443) SENZA planimetria
 ```
+- **Non c'è una stanza predefinita.** Nel pannello (`/`) si sceglie: **«Carica DXF»** (solo file `.dxf`, non DWG: viene normalizzato in metri con origine in (0,0), con avvisi) oppure **«Disegna planimetria»** (editor `/room`). Entrambi salvano la planimetria standard in `planimetria.dxf` (cartella corrente, `--room-file`).
+- Ripiego da terminale: `python scripts/run_camera.py --dxf percorso/file.dxf` (non viene sovrascritto). I file in `scenarios/` sono solo esempi e fixture di test; `make room` genera ancora `scenarios/stanza.dxf` dalle misure di `stanza_esempio.json`.
 - **Mac:** `https://localhost:8443/` (pannello). Accettare l'avviso del certificato la prima volta.
 - **iPhone:** `https://<IP-del-Mac>:8443/camera` (l'indirizzo lo stampa il terminale). Safari: «Mostra dettagli → visita il sito web», poi **Avvia** e consenti la camera. Orizzontale, fermo sul treppiede. Mac e iPhone sulla stessa rete (o hotspot).
 - **Calibrazione (una volta, treppiede fermo):** `https://localhost:8443/calibrate`

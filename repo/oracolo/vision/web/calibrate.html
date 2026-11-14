@@ -61,7 +61,7 @@ document.getElementById('ch').addEventListener('change',saveCalib);
 document.getElementById('refresh').onclick=()=>{im=new Image();im.onload=()=>{imgPts=[];worldPts=[];pending=null;upd();msg('Immagine aggiornata: i punti vanno rifatti.');};im.onerror=()=>{msg('Nessun frame ricevuto.');upd();};im.src='/snapshot.jpg?_='+Date.now();};
 document.getElementById('save').onclick=saveCalib;
 (async()=>{const qrc=document.getElementById('qrcard');document.getElementById('qrbtn').onclick=()=>{qrc.style.display=qrc.style.display==='block'?'none':'block';};qrc.onclick=()=>{qrc.style.display='none';};
-  try{const r=await fetch('/scene');scene=await r.json();document.getElementById('qru').textContent=scene.camera_url||'';
+  try{const r=await fetch('/scene');scene=await r.json();document.getElementById('qru').textContent=scene.camera_url||'';if(scene.no_scene)msg('Prima scegli la planimetria dal pannello: «Carica DXF» oppure «Disegna planimetria».');
     if(scene.cam){cam=scene.cam.xy;document.getElementById('ch').value=scene.cam.h;}}catch(e){msg('Planimetria non disponibile');}
   im.onload=()=>{qrc.style.display='none';upd();};im.onerror=()=>{qrc.style.display='block';upd();};im.src='/snapshot.jpg?_='+Date.now();upd();})();
 </script></body></html>

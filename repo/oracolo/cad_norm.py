@@ -186,7 +186,7 @@ def normalize_dxf(path, *, unit: float | None = None, default_height: float = 3.
         warn("Layer ignorati per nome (quote/testi/porte/finestre/tratteggi): " + ", ".join(sorted(ignored_layers)) +
              ". Se uno conteneva ostacoli veri, rinominarlo.")
     if dropped["minuscoli"]:
-        warn(f"{dropped['minuscoli']} oggetti minuscoli (< {min_area:g} m²) scartati.")
+        warn(f"Oggetti minuscoli (< {min_area:g} m²) scartati: {dropped['minuscoli']}.")
     if not items:
         err("Dopo aver scartato gli oggetti minuscoli non resta nessun poligono.")
         return None, rep

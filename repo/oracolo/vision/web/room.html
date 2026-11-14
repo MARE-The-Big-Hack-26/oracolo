@@ -24,6 +24,8 @@ label{font-size:13px;display:inline-flex;align-items:center;gap:5px}
 .row{display:flex;gap:8px}.row button{flex:1}#olist{display:flex;flex-direction:column;gap:5px}
 .item{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:6px 9px;border-radius:7px;background:#151922;border:1px solid #283042;cursor:pointer;font-size:12.5px}
 .item.sel{border-color:#3b82f6;background:#1b263b}.item small{display:block;font-size:11px;opacity:.7}
+#cadrep{display:none;padding:8px 14px;font-size:12.5px;background:#1a1f2b;border-bottom:1px solid #202634;max-height:130px;overflow:auto}
+#cadrep .warn{color:#fbbf24}#cadrep .err{color:#f87171}
 .item button{padding:2px 7px;font-size:12px;background:#3a1d24;border-color:#7f1d1d}
 </style>
 <script type="importmap">
@@ -35,10 +37,12 @@ label{font-size:13px;display:inline-flex;align-items:center;gap:5px}
   <button id="v3d" type="button">Vista 3D</button>
   <button id="vTop" type="button">Pianta 2D</button>
   <button id="clearobs" type="button">Svuota</button>
+  <button id="dxfbtn" type="button">Carica DXF</button><input type="file" id="dxffile" accept=".dxf" hidden>
   <button id="save" class="pri" type="button">Salva planimetria</button>
   <a href="/">← Pannello</a><a href="/calibrate">Calibra camera →</a>
 </header>
 <div id="msg">Caricamento scena 3D…</div>
+<div id="cadrep"></div>
 <div id="wrap">
   <aside id="side">
     <button id="addobs" class="pri" type="button" style="padding:10px;font-size:14px">+ Aggiungi ostacolo</button>
@@ -60,5 +64,15 @@ label{font-size:13px;display:inline-flex;align-items:center;gap:5px}
   </aside>
   <div id="view"><div id="hint">Trascina un blocco sul pavimento per spostarlo · Trascina i pallini su lati e tetto per larghezza/lunghezza/altezza · Trascina lo sfondo per ruotare</div></div>
 </div>
+<script src="/dxfload.js"></script>
+<script>
+// Carica DXF: il server normalizza e sostituisce la planimetria; si ricarica la pagina per vederla nell'editor
+(function(){const box=document.getElementById('cadrep');
+  try{const r=sessionStorage.getItem('oracolo_dxf_report');if(r){sessionStorage.removeItem('oracolo_dxf_report');
+    oracoloReportInto(box,JSON.parse(r));box.style.display='block';}}catch(e){}
+  document.getElementById('dxfbtn').onclick=()=>oracoloPickDxf(document.getElementById('dxffile'),rep=>{
+    if(rep.ok){try{sessionStorage.setItem('oracolo_dxf_report',JSON.stringify(rep));}catch(e){}location.reload();}
+    else{oracoloReportInto(box,rep);box.style.display='block';}});})();
+</script>
 <script type="module" src="/room.js"></script>
 </body></html>

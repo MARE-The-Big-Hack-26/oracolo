@@ -12,3 +12,4 @@ data/raw/
 # pipeline live: calibrazione e certificati locali
 calib.json
 certs/
+planimetria.dxf
