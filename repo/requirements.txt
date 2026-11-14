@@ -4,5 +4,5 @@ shapely>=2.0
 matplotlib>=3.8
 ezdxf>=1.1
 pytest>=8.0
-opencv-python-headless>=4.9
+opencv-python-headless>=4.9,<5  # 5.x non ha cv2.HOGDescriptor
 cryptography>=42
