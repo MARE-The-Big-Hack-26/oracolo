@@ -32,11 +32,13 @@ class MarkerDetector:
         self._det = cv2.aruco.ArucoDetector(d, cv2.aruco.DetectorParameters())
         self.marker_id = marker_id
         self.height = height
+        self.seen = {}  # id -> angoli 4x2 (pixel) di TUTTI i marker dell'ultimo frame: le ancore a terra usano questi
 
     def detect(self, frame) -> list:
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY) if frame.ndim == 3 else frame
         corners, ids, _ = self._det.detectMarkers(gray)
         out = []
+        self.seen = {} if ids is None else {int(i): c[0].astype(float) for c, i in zip(corners, ids.flatten())}
         if ids is None:
             return out
         for c, i in zip(corners, ids.flatten()):

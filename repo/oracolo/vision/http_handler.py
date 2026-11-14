@@ -11,7 +11,9 @@ import cv2
 from .certs import maybe_wrap_tls
 
 WEB = Path(__file__).parent / "web"
+MAX_DXF_BYTES = 20 * 1024 * 1024
 _PAGES = {"/": "panel.html", "/panel": "panel.html", "/camera": "camera.html", "/calibrate": "calibrate.html", "/room": "room.html"}
+_JS = ("/room.js", "/room_cam.js", "/calibrate.js", "/anchors.js", "/dxfload.js")
 
 
 def make_handler(app, camera_url: str = "", ssl_ctx: ssl.SSLContext | None = None):
@@ -57,22 +59,29 @@ def make_handler(app, camera_url: str = "", ssl_ctx: ssl.SSLContext | None = Non
 
         def _json_post(self, fn, body: bytes):
             try:
-                return self._send(200, json.dumps(fn(json.loads(body))).encode(), "application/json")
-            except (ValueError, KeyError, cv2.error) as e:
+                return self._send(200, json.dumps(fn(json.loads(body or b"{}"))).encode(), "application/json")
+            except (ValueError, KeyError, TypeError, cv2.error) as e:
                 return self._send(400, json.dumps({"ok": False, "error": str(e)}).encode(), "application/json")
 
         def do_GET(self):  # noqa: N802
             path = self.path.split("?", 1)[0]
             if path in _PAGES:
                 return self._send(200, (WEB / _PAGES[path]).read_bytes(), "text/html; charset=utf-8")
-            if path in ("/room.js", "/room_cam.js", "/calibrate.js"):
+            if path in _JS:
                 return self._send(200, (WEB / path.lstrip("/")).read_bytes(), "application/javascript; charset=utf-8")
             if path == "/state":
                 return self._send(200, app.current_state(), "application/json")
             if path == "/scene":
                 info = app.pipe.scene_info()
                 info["camera_url"] = app.camera_url or camera_url
+                info["no_scene"] = not app.scene_loaded
+                info["cad"] = app.cad_report
                 return self._send(200, json.dumps(info).encode(), "application/json")
+            if path == "/anchors":
+                a = app.pipe.anchors
+                out = {"anchors": None if a is None else a.to_dict(), "error": app.anchors_error,
+                       "align": json.loads(app.current_state()).get("align")}
+                return self._send(200, json.dumps(out).encode(), "application/json")
             if path == "/qr.png":
                 return self._send(200, app.qr_png(camera_url), "image/png")
             if path == "/snapshot.jpg":
@@ -105,12 +114,27 @@ def make_handler(app, camera_url: str = "", ssl_ctx: ssl.SSLContext | None = Non
                 pass
 
         def do_POST(self):  # noqa: N802
+            if self.path == "/dxf" and "chunked" not in self.headers.get("Transfer-Encoding", "").lower():
+                if int(self.headers.get("Content-Length", "0")) > MAX_DXF_BYTES:
+                    self.close_connection = True
+                    out = {"ok": False, "errors": [f"File troppo grande (> {MAX_DXF_BYTES // 2**20} MB)."], "warnings": [], "stats": {}}
+                    return self._send(413, json.dumps(out).encode(), "application/json")
             body = self._read_body()
             if self.path == "/frame":
                 app.push_jpeg(body)
                 return self._send(204, b"")
             if self.path == "/calib":
                 return self._json_post(app.apply_calibration, body)
+            if self.path == "/anchors":
+                return self._json_post(app.apply_anchors, body)
+            if self.path == "/calib_anchors":
+                return self._json_post(app.calibrate_from_anchors, body)
+            if self.path == "/dxf":
+                if len(body) > MAX_DXF_BYTES:
+                    out = {"ok": False, "errors": [f"File troppo grande (> {MAX_DXF_BYTES // 2**20} MB)."], "warnings": [], "stats": {}}
+                    return self._send(413, json.dumps(out).encode(), "application/json")
+                out = app.apply_dxf(body, self.headers.get("X-Filename", ""))
+                return self._send(200 if out["ok"] else 400, json.dumps(out, default=str).encode(), "application/json")
             if self.path == "/scene":
                 return self._json_post(app.apply_scene, body)
             return self._send(404, b"non trovato")

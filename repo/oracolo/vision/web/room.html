@@ -65,19 +65,9 @@ header a:hover{border-color:#60a5fa;background:#263147;color:#fff}
 .dimrow input[type=range]{flex:1;padding:0;accent-color:#3b82f6;cursor:pointer}
 .dimrow input[type=number]{width:70px;text-align:right}
 .grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-.fld{display:flex;flex-direction:column;gap:4px;font-size:12px;color:#cbd5e1;font-weight:500}
-.fld input{width:100%}
-.row{display:flex;gap:6px}
-.row button{flex:1}
-.sep{height:1px;background:#242c3d;margin:2px 0}
-.sec-lbl{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#94a3b8}
-#olist{display:flex;flex-direction:column;gap:5px}
-#olist:empty::after{content:"Nessun oggetto nella stanza. Premi + Aggiungi cubo per iniziare.";font-size:12px;color:#94a3b8;padding:8px 4px;text-align:center}
-.item{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:7px 10px;border-radius:6px;background:#111621;border:1px solid #263042;cursor:pointer;font-size:13px;color:#f1f5f9;transition:border-color .12s,background .12s}
-.item:hover{border-color:#475569;background:#151c2a}
-.item.sel{border-color:#3b82f6;background:#1a253a}
-.item small{display:block;font-size:12px;color:#94a3b8;margin-top:1px}
 .item button{padding:4px 8px;font-size:12px;background:#991b1b;border-color:#ef4444;color:#fff}
+#cadrep{display:none;padding:8px 14px;font-size:12.5px;background:#1a1f2b;border-bottom:1px solid #242c3d;max-height:130px;overflow:auto}
+#cadrep .warn{color:#fbbf24}#cadrep .err{color:#f87171}
 @media (max-width:900px){html,body{overflow:auto}#wrap{flex-direction:column;height:auto}#side{width:100%;max-height:52vh}#view{height:55vh;min-height:360px}}
 </style>
 <script type="importmap">
@@ -87,10 +77,10 @@ header a:hover{border-color:#60a5fa;background:#263147;color:#fff}
   <span class="brand">ORACOLO // CAD 3D</span>
   <h1>Editor Planimetria</h1>
   <div class="grp"><div class="seg" role="group" aria-label="Modalità vista"><button id="v3d" class="active" type="button">Vista 3D</button><button id="vTop" type="button">Pianta 2D</button><button id="vCam" type="button">Vista iPhone <kbd>0</kbd></button></div></div>
-  <div class="grp"><button id="undoRoom" type="button" disabled>Annulla <kbd>Ctrl+Z</kbd></button><button id="clearobs" type="button">Svuota</button><button id="save" class="pri" type="button">Salva planimetria</button></div>
+  <div class="grp"><button id="undoRoom" type="button" disabled>Annulla <kbd>Ctrl+Z</kbd></button><button id="clearobs" type="button">Svuota</button><button id="dxfbtn" type="button">Carica DXF</button><input type="file" id="dxffile" accept=".dxf" hidden><button id="save" class="pri" type="button">Salva planimetria</button></div>
   <div class="nav"><a href="/calibrate">Calibra camera</a><a href="/">Pannello Live</a></div>
 </header>
-<div id="msg" role="status" aria-live="polite">Caricamento scena 3D...</div><div id="toast"></div>
+<div id="msg" role="status" aria-live="polite">Caricamento scena 3D...</div><div id="toast"></div><div id="cadrep"></div>
 <div id="wrap">
   <aside id="side">
     <nav class="tabs" role="tablist" aria-label="Sezioni editor">
@@ -299,6 +289,16 @@ window.OracoloGeom = (() => {
   }
   return { snap, rnd, polySpan, polyArea, ensureCCW, cleanRing, translatePoly, scalePolyTo, rotatePoly, insertVertexAt, longestEdgeIdx, removeVertexAt, extrudeEdge, defaultCamDir, computeFovWedges, computeShadows, cube, flashSave };
 })();
+</script>
+
+<script src="/dxfload.js"></script>
+<script>
+(function(){const box=document.getElementById('cadrep');
+  try{const r=sessionStorage.getItem('oracolo_dxf_report');if(r){sessionStorage.removeItem('oracolo_dxf_report');
+    oracoloReportInto(box,JSON.parse(r));box.style.display='block';}}catch(e){}
+  document.getElementById('dxfbtn').onclick=()=>oracoloPickDxf(document.getElementById('dxffile'),rep=>{
+    if(rep.ok){try{sessionStorage.setItem('oracolo_dxf_report',JSON.stringify(rep));}catch(e){}location.reload();}
+    else{oracoloReportInto(box,rep);box.style.display='block';}});})();
 </script>
 <script type="module" src="/room.js"></script>
 </body></html>

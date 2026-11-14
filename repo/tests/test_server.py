@@ -1,6 +1,7 @@
 import json
 import ssl
 import time
+import urllib.error
 import urllib.request
 from pathlib import Path
 
@@ -284,3 +285,91 @@ def test_camera_move_updates_shadows_fov_and_fog(live):
     st4 = json.loads(_req(base + "/state").read())
     assert r3["shadows"] and not r4["shadows"]
     assert r3["fov"] != r4["fov"] and st3["fog"]["b64"] != st4["fog"]["b64"]
+
+
+# ---- «Carica DXF» e avvio senza planimetria ------------------------------------------------------------
+REALISTIC = Path(__file__).resolve().parent.parent / "scenarios" / "magazzino_realistico_mm.dxf"
+
+
+def _start_empty(tmp_path):
+    from shapely.geometry import box
+
+    from oracolo.geometry import Scene
+    pipe = LivePipeline(Scene(box(0, 0, 5, 4), []), None, person_detector=NoPersonDetector())
+    app = LiveApp(pipe, tmp_path / "calib.json", dxf_path=tmp_path / "planimetria.dxf", scene_loaded=False)
+    httpd = serve(app, "127.0.0.1", 0)
+    return app, httpd, f"http://127.0.0.1:{httpd.server_address[1]}"
+
+
+def _post_dxf(base, data, name="x.dxf"):
+    req = urllib.request.Request(base + "/dxf", data=data, method="POST", headers={"X-Filename": name})
+    try:
+        r = urllib.request.urlopen(req, timeout=5)
+        return r.status, json.loads(r.read())
+    except urllib.error.HTTPError as e:
+        return e.code, json.loads(e.read())
+
+
+def test_avvio_senza_planimetria_poi_carica_dxf(tmp_path):
+    app, httpd, base = _start_empty(tmp_path)
+    try:
+        st = json.loads(_req(base + "/state").read())
+        assert st["no_scene"] is True and not st["calibrated"] and "decision" not in st
+        assert json.loads(_req(base + "/scene").read())["no_scene"] is True
+
+        code, rep = _post_dxf(base, REALISTIC.read_bytes(), "magazzino%20realistico.dxf")
+        assert code == 200 and rep["ok"] and rep["stats"]["occluders"] == 12
+        assert rep["warnings"] and rep["filename"] == "magazzino realistico.dxf"
+
+        sc = json.loads(_req(base + "/scene").read())
+        assert sc["no_scene"] is False and len(sc["occluders"]) == 12
+        xs = [p[0] for p in sc["bounds"]]
+        ys = [p[1] for p in sc["bounds"]]
+        assert (min(xs), min(ys), max(xs), max(ys)) == (0.0, 0.0, 24.0, 14.0)
+        assert sc["cad"]["stats"]["unit_m"] == 0.001
+        assert "no_scene" not in json.loads(_req(base + "/state").read())
+
+        reloaded, info = load_dxf(tmp_path / "planimetria.dxf")  # copia in formato standard
+        assert info["bounds_m"] == pytest.approx((0, 0, 24, 14)) and len(reloaded.occluders) == 12
+    finally:
+        app.running = False
+        httpd.shutdown()
+
+
+def test_dxf_inutilizzabile_non_cambia_la_planimetria(tmp_path):
+    app, httpd, base = _start_empty(tmp_path)
+    try:
+        _post_dxf(base, REALISTIC.read_bytes())
+        for data in (b"", b"non e' un dxf", b"AC1032\x00\x00 finto dwg"):
+            code, rep = _post_dxf(base, data)
+            assert code == 400 and not rep["ok"] and rep["errors"]
+        assert "DWG" in _post_dxf(base, b"AC1032\x00\x00 finto dwg")[1]["errors"][0]
+        sc = json.loads(_req(base + "/scene").read())
+        assert len(sc["occluders"]) == 12 and sc["no_scene"] is False
+    finally:
+        app.running = False
+        httpd.shutdown()
+
+
+def test_dxf_troppo_grande_rifiutato(tmp_path, monkeypatch):
+    from oracolo.vision import http_handler
+    monkeypatch.setattr(http_handler, "MAX_DXF_BYTES", 100)
+    app, httpd, base = _start_empty(tmp_path)
+    try:
+        code, rep = _post_dxf(base, b"0" * 500)
+        assert code == 413 and not rep["ok"]
+    finally:
+        app.running = False
+        httpd.shutdown()
+
+
+def test_editor_dopo_avvio_vuoto_sblocca_la_planimetria(tmp_path):
+    app, httpd, base = _start_empty(tmp_path)
+    try:
+        payload = {"bounds": [[0, 0], [6, 0], [6, 4], [0, 4]], "obstacles": [{"x": 1, "y": 1, "w": 1, "d": 1, "height": 1.5}]}
+        assert json.loads(_req(base + "/scene", json.dumps(payload).encode()).read())["ok"]
+        assert "no_scene" not in json.loads(_req(base + "/state").read())
+        assert json.loads(_req(base + "/scene").read())["cad"]["source"] == "editor"
+    finally:
+        app.running = False
+        httpd.shutdown()

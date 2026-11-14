@@ -118,6 +118,13 @@ function drawMap() {
     c.fillStyle = 'rgba(15,23,42,0.92)'; c.fillRect(sx + 12, sy - 26, snapMap.label.length * 8 + 14, 22);
     c.fillStyle = '#38bdf8'; c.font = '600 13px sans-serif'; c.fillText(snapMap.label, sx + 18, sy - 11);
   }
+  if (scene.anchors && scene.anchors.anchors) {
+    for (const [id, a] of Object.entries(scene.anchors.anchors)) {
+      const h = Math.max(6, scene.anchors.size_m * v.sc / 2);
+      c.strokeStyle = '#e879f9'; c.lineWidth = 3; c.strokeRect(v.X(a.x) - h, v.Y(a.y) - h, 2 * h, 2 * h);
+      c.fillStyle = '#e879f9'; c.font = 'bold 14px sans-serif'; c.fillText('A' + id, v.X(a.x) + h + 4, v.Y(a.y) - h);
+    }
+  }
   if (cam) {
     const x = v.X(cam[0]), y = v.Y(cam[1]);
     c.fillStyle = (dragMap && dragMap.kind === 'cam') ? '#f59e0b' : '#009e73';
@@ -211,6 +218,7 @@ ci.addEventListener('pointerup', () => { if (dragImg < 0) return; dragImg = -1; 
 cm.addEventListener('pointerdown', (e) => {
   if (!scene) return; const v = mview(), [px, py, sc] = pos(e, cm), sn = findSnap(v, px, py, sc, e.altKey);
   const w = sn ? [sn.x, sn.y, sn.z] : [v.ix(px), v.iy(py), 0];
+  if (window.OracoloAnchorsPick && window.OracoloAnchorsPick(w[0], w[1])) return;
   if (camMode) { cam = [rnd(w[0]), rnd(w[1])]; camMode = false; syncCamInputs(); upd(); saveCameraOrCalib(setCamBtn); return; }
   if (!pending) {
     const rad = 16 * sc;
@@ -255,6 +263,8 @@ $('reset').onclick = () => {
 };
 $('refresh').onclick = () => { im = new Image(); im.onload = () => { upd(); flashBtn($('refresh'), '[OK] Aggiornata', 1200); notify('Fotogramma aggiornato.'); }; im.onerror = () => { notify('Nessun fotogramma disponibile.', true); upd(); }; im.src = '/snapshot.jpg?_=' + Date.now(); };
 saveBtn.onclick = () => saveCameraOrCalib(saveBtn);
+window.OracoloCalibReload = async () => { try { scene = await (await fetch('/scene')).json(); upd(); } catch {} };
+window.OracoloSetCamFromAnchors = (c) => { if (!c) return; cam = [rnd(c[0]), rnd(c[1])]; camH = rnd(c[2]); syncCamInputs(); };
 (async () => {
   const qrc = $('qrcard'), c = readCache(); $('qrbtn').onclick = () => { qrc.style.display = qrc.style.display === 'block' ? 'none' : 'block'; }; qrc.onclick = () => { qrc.style.display = 'none'; };
   try {
