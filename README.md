@@ -27,9 +27,9 @@ make camera    # server HTTPS: pannello Mac https://localhost:8443/  ·  iPhone 
 ```
 1. Nel pannello: **Carica DXF** oppure **Disegna planimetria** (non esiste una stanza predefinita).
 2. L'iPhone, fisso su treppiede, apre la pagina `/camera` e invia il video al Mac.
-3. **Calibrazione:** a 4 clic, oppure automatica da **4 marker ArUco a terra** (id 10–13) in punti noti del CAD.
+3. **Calibrazione:** a 4 clic, oppure automatica da **marker ArUco a terra** (4–8, id 10–17) in punti noti del CAD.
 4. **Allineamento CAD ↔ video:** se i marker a terra risultano dove il CAD dice → `OK`; se sono pochi o coperti → `DEGRADATO`; se la camera è stata spostata → `NON_COINCIDE`, banner nel pannello e comando **FERMA** (ignoto ≠ libero).
-5. Riconosce persone (RF-DETR o HOG) e un muletto simulato da una **sedia con marker ArUco** (id 0); il pannello mostra il CAD sovrapposto al video, le zone non osservate, il livello e il limite di velocità.
+5. Riconosce persone (RF-DETR o HOG) e un muletto simulato da una **persona che porta un marker ArUco** (id 0; `--marker-h` indica a che quota lo tiene); il pannello mostra il CAD sovrapposto al video, le zone non osservate, il livello e il limite di velocità.
 
 **Stato della verifica:** testato con camera sintetica e browser headless (110 test). Prova con iPhone, treppiede e marker stampati: *[DA COMPILARE dopo la prova in aula: errori misurati in cm, rilevatore usato, fps]*.
 
@@ -79,7 +79,7 @@ Collisione = contatto con il mezzo **in moto**; lo sfioramento con il mezzo già
 - **Non è un sistema di sicurezza certificato**: prototipo di ricerca.
 - I risultati della tabella sono di **simulazione** (identità perfetta, nessun rumore del sensore) e vanno letti separatamente dalle prove con camera reale.
 - Le **soglie di allineamento** (OK sotto 10 cm, NON_COINCIDE sopra 25 cm per 3 frame) e la **dimensione dei marker** (20 cm consigliati, 15 cm minimo) sono ipotesi o simulazioni, non misure con l'iPhone.
-- Con 4 marker a terra una coordinata sbagliata su uno solo può non essere rilevata: controllare anche la sovrapposizione CAD-video. La posizione della camera si misura col metro.
+- Con 4 marker a terra una coordinata sbagliata su uno solo può non essere rilevata (con 5–8 sì): controllare anche la sovrapposizione CAD-video. La posizione della camera si misura col metro.
 - Una sola camera fissa nel prototipo; il CAD vero non è stato provato (solo file sintetici). Solo formato DXF.
 - Il rilevatore YOLO (opzionale) ha licenza AGPL-3.0; il rilevatore predefinito funziona senza.
 
