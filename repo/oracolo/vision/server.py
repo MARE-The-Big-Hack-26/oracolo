@@ -7,14 +7,18 @@
     GET  /video.mjpg  video annotato (MJPEG)
     GET  /state       stato JSON     GET /scene  planimetria + campo visivo + camera
     GET  /snapshot.jpg ultimo frame grezzo      POST /calib  salva la calibrazione
+    GET/POST /anchors  ancore ArUco a terra (id 10-13, coordinate nel CAD)    POST /calib_anchors  calibra dalle ancore
+    POST /dxf         carica un DXF (corpo = file): normalizzazione + nuova planimetria (solo DXF, non DWG)
 Solo libreria standard (+ OpenCV, NumPy già in uso).
 """
 from __future__ import annotations
 
 import json
 import ssl
+import tempfile
 import threading
 import time
+from urllib.parse import unquote
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
@@ -23,16 +27,20 @@ import numpy as np
 
 from ..cab import CAUSE_IT
 from ..cad import save_dxf, scene_from_spec
+from ..cad_norm import normalize_dxf
+from .align import AnchorSet
 from .calib import Calibration
 from .pipeline import json_state
 from .viz import draw_overlay
 
 WEB = Path(__file__).parent / "web"
+MAX_DXF_BYTES = 20 * 1024 * 1024
 
 
 class LiveApp:
     def __init__(self, pipeline, calib_path="calib.json", jpeg_quality: int = 70, max_width: int = 960,
-                 stale_after: float = 0.6, dxf_path=None):
+                 stale_after: float = 0.6, dxf_path=None, scene_loaded: bool = True,
+                 anchors_path=None):
         self.pipe = pipeline
         self.calib_path = Path(calib_path)
         self.dxf_path = Path(dxf_path) if dxf_path else None
@@ -52,6 +60,18 @@ class LiveApp:
         self.n_frames = 0
         self.lock_pipe = threading.Lock()
         self.last_error = ""
+        # planimetria: all'avvio senza --dxf non c'è ancora (si sceglie «Carica DXF» o «Disegna»)
+        self.scene_loaded = scene_loaded
+        self.cad_report = None
+        self.default_height = 3.0
+        self.lines_as_walls = False
+        self.anchors_path = Path(anchors_path) if anchors_path else None
+        self.anchors_error = ""
+        if self.anchors_path is not None and self.anchors_path.exists():
+            try:
+                self.pipe.set_anchors(AnchorSet.load(self.anchors_path))
+            except (ValueError, OSError) as e:
+                self.anchors_error = f"{self.anchors_path}: {e}"
 
     # ---- ingresso frame ------------------------------------------------------------------
     def push_jpeg(self, data: bytes) -> None:
@@ -111,6 +131,11 @@ class LiveApp:
     def current_state(self) -> bytes:
         """Stato per la UI. Se i frame smettono di arrivare il comando diventa FERMA (come il watchdog della macchina)."""
         st = dict(self.state_obj)
+        if not self.scene_loaded:  # nessuna planimetria scelta: niente calibrazione né comando
+            st.update({"no_scene": True, "calibrated": False})
+            st.pop("decision", None)
+            st["age"] = None
+            return json.dumps(st).encode()
         age = None if self.last_done is None else time.monotonic() - self.last_done
         st["age"] = None if age is None else round(age, 2)
         if st.get("calibrated") and age is not None and age > self.stale_after:
@@ -133,7 +158,65 @@ class LiveApp:
             save_dxf(scene, self.dxf_path)
         with self.lock_pipe:
             self.pipe.set_scene(scene)
+        self.scene_loaded = True
+        self.cad_report = {"source": "editor", "filename": "", "ok": True, "errors": [], "warnings": [],
+                           "stats": {"occluders": len(scene.occluders), "size_m": [round(v, 3) for v in scene.bounds.bounds[2:]]}}
         return {"ok": True, "occluders": len(scene.occluders), "bounds_m": [round(v, 3) for v in scene.bounds.bounds]}
+
+    # ---- ancore a terra ------------------------------------------------------------------
+    def apply_anchors(self, body: dict) -> dict:
+        if body.get("clear"):
+            with self.lock_pipe:
+                self.pipe.set_anchors(None)
+            if self.anchors_path is not None and self.anchors_path.exists():
+                self.anchors_path.unlink()
+            return {"ok": True, "anchors": None, "warnings": []}
+        a = AnchorSet.from_dict(body, forbidden_ids=(self.pipe.marker.marker_id,))
+        warnings = []
+        out = a.outside(self.pipe.scene.bounds)
+        if out:
+            warnings.append(f"Ancore fuori dal perimetro della planimetria: {out}. Controlla le coordinate.")
+        if self.anchors_path is not None:
+            a.save(self.anchors_path)
+        with self.lock_pipe:
+            self.pipe.set_anchors(a)
+        return {"ok": True, "anchors": a.to_dict(), "warnings": warnings}
+
+    def calibrate_from_anchors(self, body: dict) -> dict:
+        cam = body.get("camera") if isinstance(body, dict) else None
+        camera = None if not cam else (float(cam["x"]), float(cam["y"]), float(cam["h"]))
+        with self.lock_pipe:
+            cal, info = self.pipe.calibrate_from_anchors(time.monotonic(), camera)  # ValueError -> 400
+            cal.save(self.calib_path)
+            self.pipe.set_calibration(cal)
+        return {"ok": True, **info}
+
+    def apply_dxf(self, data: bytes, filename: str = "") -> dict:
+        """Importa un DXF: normalizza (metri, origine, ostacoli) e sostituisce la planimetria. Se non è
+        utilizzabile la planimetria attuale resta quella di prima e si ritornano gli errori."""
+        name = Path(unquote(filename)).name[:80]
+        if not data:
+            return {"ok": False, "errors": ["File vuoto."], "warnings": [], "stats": {}}
+        if data[:2] == b"AC" and data[2:6].isdigit():
+            return {"ok": False, "errors": ["Questo è un DWG: non è supportato. Esporta il disegno come DXF."],
+                    "warnings": [], "stats": {}}
+        with tempfile.TemporaryDirectory() as td:
+            path = Path(td) / "upload.dxf"
+            path.write_bytes(data)
+            scene, rep = normalize_dxf(path, default_height=self.default_height, lines_as_walls=self.lines_as_walls)
+        if scene is None:
+            return rep
+        if self.dxf_path is not None:  # copia in formato standard (metri, origine 0,0)
+            try:
+                save_dxf(scene, self.dxf_path)
+            except OSError as e:
+                rep["warnings"].append(f"Planimetria normalizzata non salvata su disco ({e}).")
+        with self.lock_pipe:
+            self.pipe.set_scene(scene)
+        self.scene_loaded = True
+        rep.update({"source": "dxf", "filename": name})
+        self.cad_report = rep
+        return rep
 
 
 def _qr_png(text: str) -> bytes:
@@ -183,14 +266,21 @@ def make_handler(app: LiveApp, camera_url: str):
                 return self._page("calibrate.html")
             if path == "/room":
                 return self._page("room.html")
-            if path == "/room.js":
-                return self._send(200, (WEB / "room.js").read_bytes(), "application/javascript; charset=utf-8")
+            if path in ("/room.js", "/dxfload.js"):
+                return self._send(200, (WEB / path[1:]).read_bytes(), "application/javascript; charset=utf-8")
             if path == "/state":
                 return self._send(200, app.current_state(), "application/json")
             if path == "/scene":
                 info = app.pipe.scene_info()
                 info["camera_url"] = camera_url
+                info["no_scene"] = not app.scene_loaded
+                info["cad"] = app.cad_report
                 return self._send(200, json.dumps(info).encode(), "application/json")
+            if path == "/anchors":
+                a = app.pipe.anchors
+                out = {"anchors": None if a is None else a.to_dict(), "error": app.anchors_error,
+                       "align": json.loads(app.current_state()).get("align")}
+                return self._send(200, json.dumps(out).encode(), "application/json")
             if path == "/qr.png":
                 return self._send(200, qr_bytes, "image/png")
             if path == "/snapshot.jpg":
@@ -221,6 +311,10 @@ def make_handler(app: LiveApp, camera_url: str):
 
         def do_POST(self):  # noqa: N802
             n = int(self.headers.get("Content-Length", "0"))
+            if self.path == "/dxf" and n > MAX_DXF_BYTES:
+                self.close_connection = True  # corpo non letto: chiudere invece di desincronizzare la connessione
+                out = {"ok": False, "errors": [f"File troppo grande (> {MAX_DXF_BYTES // 2**20} MB)."], "warnings": [], "stats": {}}
+                return self._send(413, json.dumps(out).encode(), "application/json")
             body = self.rfile.read(n) if n else b""
             if self.path == "/frame":
                 app.push_jpeg(body)
@@ -231,6 +325,16 @@ def make_handler(app: LiveApp, camera_url: str):
                     return self._send(200, json.dumps(out).encode(), "application/json")
                 except (ValueError, KeyError, cv2.error) as e:
                     return self._send(400, json.dumps({"ok": False, "error": str(e)}).encode(), "application/json")
+            if self.path in ("/anchors", "/calib_anchors"):
+                try:
+                    data = json.loads(body or b"{}")
+                    out = app.apply_anchors(data) if self.path == "/anchors" else app.calibrate_from_anchors(data)
+                    return self._send(200, json.dumps(out).encode(), "application/json")
+                except (ValueError, KeyError, TypeError, cv2.error) as e:
+                    return self._send(400, json.dumps({"ok": False, "error": str(e)}).encode(), "application/json")
+            if self.path == "/dxf":
+                out = app.apply_dxf(body, self.headers.get("X-Filename", ""))
+                return self._send(200 if out["ok"] else 400, json.dumps(out, default=str).encode(), "application/json")
             if self.path == "/scene":
                 try:
                     out = app.apply_scene(json.loads(body))

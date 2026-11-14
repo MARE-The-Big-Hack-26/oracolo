@@ -67,3 +67,30 @@ def floor_pairs():
     world = [(1.0, 1.4), (4.0, 1.4), (4.0, 3.5), (1.0, 3.5)]
     img = project([[x, y, 0] for x, y in world])
     return img.tolist(), [list(w) for w in world]
+
+
+def add_floor_marker(img, mid, cx, cy, black=0.20, rot_deg=0.0):
+    """Marker ArUco steso a terra (z=0), centro (cx, cy) in metri, quadrato NERO di lato ``black``.
+    A rot 0 il lato superiore del marker punta a +Y (stessa convenzione di ``align.AnchorSet``)."""
+    full = black * 1.5  # aruco_img: bordo bianco = 1/4 del marker per lato
+    a = math.radians(rot_deg); ca, sa = math.cos(a), math.sin(a)
+    h = full / 2
+    corners = [(cx + ca * x - sa * y, cy + sa * x + ca * y) for x, y in ((-h, h), (h, h), (h, -h), (-h, -h))]
+    dst = project([[x, y, 0.0] for x, y in corners]).astype(np.float32)
+    m = aruco_img(mid)
+    sz = m.shape[0]
+    M = cv2.getPerspectiveTransform(np.float32([[0, 0], [sz, 0], [sz, sz], [0, sz]]), dst)
+    warped = cv2.warpPerspective(cv2.cvtColor(m, cv2.COLOR_GRAY2BGR), M, (W, H))
+    mask = cv2.warpPerspective(np.full((sz, sz), 255, np.uint8), M, (W, H))
+    img[mask > 0] = warped[mask > 0]
+    return img
+
+
+ANCHOR_POS = {10: (1.0, 1.4), 11: (4.0, 1.4), 12: (4.0, 3.5), 13: (1.0, 3.5)}
+
+
+def render_with_anchors(vehicle=None, ids=(10, 11, 12, 13), black=0.20):
+    img = render_frame(vehicle)
+    for i in ids:
+        add_floor_marker(img, i, *ANCHOR_POS[i], black=black)
+    return img

@@ -1,6 +1,8 @@
 """Pipeline live con camera fissa (iPhone su treppiede) -> pannello sul Mac.
 
-    PYTHONPATH=. python scripts/run_camera.py --dxf scenarios/stanza.dxf
+    PYTHONPATH=. python scripts/run_camera.py
+    -> si parte SENZA planimetria: nel pannello si sceglie «Carica DXF» (solo DXF) oppure «Disegna planimetria»
+    -> ripiego da terminale:  --dxf percorso/del/file.dxf   (i file in scenarios/ sono solo esempi)
     -> sul Mac:   https://localhost:8443/            (pannello)
     -> sull'iPhone: https://<IP-del-Mac>:8443/camera   (accetta l'avviso del certificato, premi Avvia)
     -> prima volta: https://localhost:8443/calibrate
@@ -15,7 +17,10 @@ from pathlib import Path
 
 import cv2
 
-from oracolo.cad import load_dxf
+from shapely.geometry import box
+
+from oracolo.cad_norm import normalize_dxf
+from oracolo.geometry import Scene
 from oracolo.policy import PedParams, VehicleParams
 from oracolo.vision.calib import Calibration
 from oracolo.vision.certs import ensure_cert, lan_ip
@@ -24,8 +29,13 @@ from oracolo.vision.pipeline import LivePipeline
 from oracolo.vision.server import LiveApp, serve
 
 ap = argparse.ArgumentParser()
-ap.add_argument("--dxf", default=str(Path(__file__).resolve().parent.parent / "scenarios" / "stanza.dxf"))
+ap.add_argument("--dxf", default=None,
+                help="(facoltativo) planimetria DXF da caricare subito; senza, la si sceglie nel pannello: Carica DXF o Disegna")
+ap.add_argument("--room-file", default="planimetria.dxf",
+                help="dove si salva la planimetria (caricata o disegnata) in formato standard; non sovrascrive --dxf")
 ap.add_argument("--calib", default="calib.json")
+ap.add_argument("--anchors", default="anchors.json",
+                help="ancore ArUco a terra (id 10-13) con le coordinate nel CAD; si impostano anche da /calibrate")
 ap.add_argument("--source", default="stream", help="stream | video:PERCORSO | cam:INDICE")
 ap.add_argument("--detector", default="auto",
                 help="auto | yolo[:pose|11n|11s] | rfdetr[:nano|small|base] | hog | none")
@@ -41,10 +51,19 @@ ap.add_argument("--profile", default="sedia", choices=["sedia", "magazzino"],
 ap.add_argument("--loop", action="store_true")
 a = ap.parse_args()
 
-if not Path(a.dxf).exists():
-    sys.exit(f"DXF non trovato: {a.dxf}\nCrealo con: python scripts/make_room_dxf.py scenarios/stanza_esempio.json scenarios/stanza.dxf")
-scene, info = load_dxf(a.dxf, default_height=a.default_height, lines_as_walls=a.lines_as_walls)
-print(f"Planimetria: {a.dxf}  ostacoli={info['occluders']}  confini={tuple(round(v, 2) for v in info['bounds_m'])}")
+if a.dxf:
+    if not Path(a.dxf).exists():
+        sys.exit(f"DXF non trovato: {a.dxf}")
+    scene, rep = normalize_dxf(a.dxf, default_height=a.default_height, lines_as_walls=a.lines_as_walls)
+    if scene is None:
+        sys.exit("DXF non utilizzabile:\n  - " + "\n  - ".join(rep["errors"]))
+    st = rep["stats"]
+    print(f"Planimetria: {a.dxf}  ostacoli={st['occluders']}  dimensioni={st['size_m'][0]}x{st['size_m'][1]} m")
+    for w in rep["warnings"]:
+        print("  avviso:", w)
+else:
+    scene, rep = Scene(box(0, 0, 5, 4), []), None  # segnaposto finché non si sceglie nel pannello
+    print("Planimetria: nessuna. Nel pannello scegli «Carica DXF» oppure «Disegna planimetria».")
 
 calib = Calibration.load(a.calib) if Path(a.calib).exists() else None
 print("Calibrazione:", f"caricata da {a.calib} (errore {calib.rms_m * 100:.1f} cm)" if calib else "assente: apri /calibrate")
@@ -63,7 +82,14 @@ pipe = LivePipeline(scene, calib, params=PROFILES[a.profile], ped=PedParams(v_wa
 ip = lan_ip()
 scheme = "http" if a.http else "https"
 cam_url = f"{scheme}://{ip}:{a.port}/camera"
-app = LiveApp(pipe, a.calib, dxf_path=a.dxf)
+app = LiveApp(pipe, a.calib, dxf_path=a.room_file, scene_loaded=bool(a.dxf), anchors_path=a.anchors)
+app.default_height, app.lines_as_walls = a.default_height, a.lines_as_walls
+if rep is not None:
+    app.cad_report = {**rep, "source": "dxf", "filename": Path(a.dxf).name}
+print("Ancore a terra:", "caricate da " + a.anchors if pipe.anchors is not None else
+      "nessuna (allineamento CAD-video non verificato): impostale da /calibrate")
+if app.anchors_error:
+    print("  ATTENZIONE: ancore non lette:", app.anchors_error)
 cert, key = (None, None) if a.http else ensure_cert(a.certs)
 serve(app, "0.0.0.0", a.port, cert, key, cam_url)
 
