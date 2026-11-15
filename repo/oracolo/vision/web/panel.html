@@ -129,8 +129,9 @@ const qrcard=document.getElementById('qrcard'), vid=document.getElementById('v')
 document.getElementById('qrbtn').onclick=()=>{qrManual=qrcard.style.display==='none';qrcard.style.display=qrManual?'block':'none';};
 qrcard.onclick=()=>{qrManual=false;qrcard.style.display='none';};
 function setActiveStep(lv){for(let i=0;i<4;i++){const el=document.getElementById('lv'+i);if(el)el.classList.toggle('active',i===lv);}}
+let feedSince=0;
 function setFeed(mode){
-  feedMode=mode;
+  feedMode=mode;feedSince=Date.now();
   if(mode==='snap'){lastSnapAt=Date.now();vid.src='/snapshot.jpg?_='+lastSnapAt;}
   else{vid.src='/video.mjpg?_='+Date.now();}
 }
@@ -141,20 +142,30 @@ setTimeout(()=>{if((!vid.naturalWidth||vid.naturalWidth<=1)&&feedMode==='mjpg')s
 setFeed('mjpg');
 const cleanObs=s=>{const n=(s||'').replace(/#\d+$/,'').replace(/_H\d+(?:[.,]\d+)?$/i,'').replace(/_/g,' ').trim();return /^ostacolo \d+$/i.test(n)?'':n;};
 const cv=document.getElementById('map'), ctx=cv.getContext('2d');
-function view(){const r=cv.getBoundingClientRect(),dpr=window.devicePixelRatio||1;cv.width=Math.max(1,r.width*dpr);cv.height=Math.max(1,r.height*dpr);
+function view(){const r=cv.getBoundingClientRect(),dpr=window.devicePixelRatio||1;const cw=Math.max(1,Math.round(r.width*dpr)),ch=Math.max(1,Math.round(r.height*dpr));if(cv.width!==cw)cv.width=cw;if(cv.height!==ch)cv.height=ch;
   const xs=scene.bounds.map(p=>p[0]),ys=scene.bounds.map(p=>p[1]);const minx=Math.min(...xs),maxx=Math.max(...xs),miny=Math.min(...ys),maxy=Math.max(...ys);
   const pad=24*dpr,sc=Math.min((cv.width-2*pad)/Math.max(maxx-minx,0.1),(cv.height-2*pad)/Math.max(maxy-miny,0.1));
   const ox=(cv.width-sc*(maxx-minx))/2,oy=(cv.height-sc*(maxy-miny))/2;
   return {sc,dpr,w:maxx-minx,h:maxy-miny,X:x=>ox+(x-minx)*sc,Y:y=>cv.height-oy-(y-miny)*sc};}
 function poly(v,pts,fill,stroke,lw){ctx.beginPath();pts.forEach((p,i)=>i?ctx.lineTo(v.X(p[0]),v.Y(p[1])):ctx.moveTo(v.X(p[0]),v.Y(p[1])));ctx.closePath();
   if(fill){ctx.fillStyle=fill;ctx.fill();}if(stroke){ctx.strokeStyle=stroke;ctx.lineWidth=lw||1;ctx.stroke();}}
+// mappa fog: decodificata UNA volta per contenuto in un canvas nx*ny (1 pixel per cella), poi scalata con un solo drawImage
+const FOG_PAL={1:[0,158,115,92],2:[148,163,184,56],3:[230,159,0,82],4:[204,51,17,148]};
+let fogKey=null,fogCv=null;
+function fogCanvas(f){
+  if(fogKey!==f.b64||!fogCv||fogCv.width!==f.nx||fogCv.height!==f.ny){
+    const bin=atob(f.b64);fogCv=fogCv||document.createElement('canvas');fogCv.width=f.nx;fogCv.height=f.ny;
+    const c=fogCv.getContext('2d'),im=c.createImageData(f.nx,f.ny),d=im.data;
+    for(let iy=0;iy<f.ny;iy++){const row=f.ny-1-iy;
+      for(let ix=0;ix<f.nx;ix++){const p=FOG_PAL[bin.charCodeAt(iy*f.nx+ix)];if(!p)continue;const o=(row*f.nx+ix)*4;d[o]=p[0];d[o+1]=p[1];d[o+2]=p[2];d[o+3]=p[3];}}
+    c.putImageData(im,0,0);fogKey=f.b64;}
+  return fogCv;}
+let drawQueued=false;
+function schedDraw(){if(drawQueued)return;drawQueued=true;requestAnimationFrame(()=>{drawQueued=false;draw();});}
 function draw(){if(!scene)return;const v=view();ctx.clearRect(0,0,cv.width,cv.height);
   poly(v,scene.bounds,'#0d111a','#94a3b8',2*v.dpr);
-  if(last&&last.fog){const f=last.fog,bin=atob(f.b64);
-    for(let iy=0;iy<f.ny;iy++)for(let ix=0;ix<f.nx;ix++){const s=bin.charCodeAt(iy*f.nx+ix);if(!s)continue;
-      const col=s===1?'rgba(0,158,115,.36)':s===2?'rgba(148,163,184,.22)':s===3?'rgba(230,159,0,.32)':'rgba(204,51,17,.58)';
-      ctx.fillStyle=col;const x0=v.X(f.minx+ix*f.res),y0=v.Y(f.miny+iy*f.res),x1=v.X(f.minx+(ix+1)*f.res),y1=v.Y(f.miny+(iy+1)*f.res);
-      ctx.fillRect(Math.min(x0,x1),Math.min(y0,y1),Math.abs(x1-x0)+1,Math.abs(y1-y0)+1);}}
+  if(last&&last.fog){const f=last.fog;ctx.imageSmoothingEnabled=false;
+    ctx.drawImage(fogCanvas(f),v.X(f.minx),v.Y(f.miny+f.ny*f.res),f.nx*f.res*v.sc,f.ny*f.res*v.sc);}
   else if(scene.shadows){scene.shadows.forEach(s=>poly(v,s,'rgba(255,200,0,.28)',null,0));}
   scene.occluders.forEach(o=>{if(!o.coords.length)return;poly(v,o.coords,'#3b230c','#f59e0b',2*v.dpr);
     const lbl=cleanObs(o.name);if(!lbl)return;
@@ -200,7 +211,7 @@ async function poll(){try{const r=await fetch('/state?_='+Date.now(),{cache:'no-
   if(last.stale){vstat.style.display='block';vstat.textContent='[PAUSA FLUSSO] Ultimo frame congelato - riapri /camera sulla camera o premi "QR Camera"';
     alarm.style.display='block';
     if((!vid.naturalWidth||vid.naturalWidth<=1||feedMode==='snap')&&Date.now()-lastSnapAt>2000)setFeed('snap');}
-  else{vstat.style.display='none';alarm.style.display='none';if(last.age!==null&&last.age!==undefined&&last.age<1.5&&(feedMode!=='mjpg'||!vid.naturalWidth||vid.naturalWidth<=1))setFeed('mjpg');}
+  else{vstat.style.display='none';alarm.style.display='none';if(last.age!==null&&last.age!==undefined&&last.age<1.5&&(feedMode!=='mjpg'||!vid.naturalWidth||vid.naturalWidth<=1)&&Date.now()-feedSince>2000)setFeed('mjpg');}
   const d=last.decision,bar=document.getElementById('bar');
   if(d){bar.style.background=COL[d.level];document.getElementById('lvl').textContent=NAME[d.level];setActiveStep(d.level);
     document.getElementById('lim').textContent=d.limit.toFixed(2)+' m/s ('+(d.limit*3.6).toFixed(1)+' km/h)';document.getElementById('cause').textContent=d.cause_it;}
@@ -213,8 +224,10 @@ async function poll(){try{const r=await fetch('/state?_='+Date.now(),{cache:'no-
     al.status+(al.rms_m!=null?` (${(al.rms_m*100).toFixed(1)} cm)`:'');
   document.getElementById('fps').textContent=last.fps??'--';document.getElementById('lat').textContent=last.latency!==undefined?Math.round(last.latency*1000)+' ms':'--';
   document.getElementById('np').textContent=(last.persons||[]).length;document.getElementById('vio').textContent=last.violations??0;
-  document.getElementById('vs').textContent=last.vehicle?last.vehicle.speed.toFixed(2)+' m/s ('+(last.vehicle.speed*3.6).toFixed(1)+' km/h)':'--';draw();}
+  document.getElementById('vs').textContent=last.vehicle?last.vehicle.speed.toFixed(2)+' m/s ('+(last.vehicle.speed*3.6).toFixed(1)+' km/h)':'--';schedDraw();}
   catch(e){if(Date.now()-lastPollOk>1200){document.getElementById('bar').style.background=COL[3];document.getElementById('lvl').textContent=NAME[3];setActiveStep(3);
     document.getElementById('lim').textContent='0.00 m/s (0.0 km/h)';document.getElementById('cause').textContent='Connessione server interrotta - arresto fail-safe';alarm.style.display='block';}}}
-window.addEventListener('resize',draw);loadScene();setInterval(poll,120);
+window.addEventListener('resize',schedDraw);loadScene();
+// polling sequenziale: la richiesta successiva parte solo a fine della precedente (niente accumulo se il server e' lento)
+(async function pollLoop(){const t0=performance.now();try{await poll();}catch(e){}setTimeout(pollLoop,Math.max(0,120-(performance.now()-t0)));})();
 </script></body></html>
