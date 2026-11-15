@@ -4,21 +4,19 @@
 
 **Idea in una riga:** una camera fissa e la planimetria (CAD) della zona permettono di calcolare dove la macchina *non vede*; ClearCorner tratta l'ignoto come «potenzialmente occupato» (**ignoto ≠ libero**) e calcola a che velocità il carrello può ancora fermarsi in tempo, con 4 livelli di pericolo e un comando **fail-safe**.
 
-## Avvio rapido (per chi ha appena scaricato lo ZIP)
-1. Estrai `oracolo-main.zip` e apri il terminale nella cartella `oracolo-main/repo`.
-2. Installa le dipendenze base e avvia la demo live:
-   ```bash
-   python3 -m pip install -r requirements.txt
-   PYTHONPATH=. python3 scripts/run_live.py --loop
-   ```
-   *(Su Windows PowerShell: `py -m pip install -r requirements.txt; $env:PYTHONPATH="."; py scripts/run_live.py --loop`)*
-3. Apri **`http://localhost:8000`** nel browser per vedere i comandi al muletto in tempo reale.
-4. Per il **pannello completo con camera/webcam, mappa 2D e planimetria 3D**:
-   ```bash
-   python3 -m pip install -r requirements-vision.txt
-   PYTHONPATH=. python3 scripts/run_camera.py --source cam:0 --http --no-tunnel --dxf scenarios/stanza.dxf
-   ```
-   Poi apri **`http://localhost:8443`**.
+## Avvio rapido (1 clic o 1 comando)
+- **Da `.zip`:** estrai `oracolo-main.zip` e fai doppio clic su **`START.command`** (macOS) oppure **`START.bat`** (Windows), oppure esegui:
+  ```bash
+  python3 start.py
+  ```
+  Prepara l'ambiente, avvia l'app e **apre automaticamente il browser**.
+- **Pannello completo con camera/webcam, mappa 2D e planimetria 3D:**
+  ```bash
+  cd repo
+  python3 -m pip install -r requirements-vision.txt
+  PYTHONPATH=. python3 scripts/run_camera.py --source cam:0 --http --no-tunnel --dxf scenarios/stanza.dxf
+  ```
+  Poi apri **`http://localhost:8443`**.
 
 ## Come funziona
 1. **Si importa il CAD** (file DXF) oppure si **disegna la planimetria** nell'editor 3D integrato. Chi vuole solo provare sceglie una **planimetria di prova** dal menu (aula o magazzino). Il programma normalizza il file (unità → metri, origine in 0,0, perimetro, ostacoli, altezze) e **segnala cosa ha scartato** (porte, testi, quote, oggetti minuscoli): `oracolo/cad_norm.py`.

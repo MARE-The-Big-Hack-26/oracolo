@@ -13,9 +13,9 @@ document.querySelectorAll(".btn-primary").forEach((el) => {
 });
 
 const COMMANDS = {
-  unix: "git clone https://github.com/MARE-The-Big-Hack-26/oracolo.git && cd oracolo/repo && python3 -m pip install -r requirements.txt && PYTHONPATH=. python3 scripts/run_live.py --loop",
-  zip: "cd ~/Downloads/oracolo-main/repo && python3 -m pip install -r requirements.txt && PYTHONPATH=. python3 scripts/run_live.py --loop",
-  windows: "git clone https://github.com/MARE-The-Big-Hack-26/oracolo.git; cd oracolo\\repo; py -m pip install -r requirements.txt; $env:PYTHONPATH=\".\"; py scripts/run_live.py --loop"
+  unix: "git clone https://github.com/MARE-The-Big-Hack-26/oracolo.git && python3 oracolo/start.py",
+  zip: "python3 ~/Downloads/oracolo-main/start.py",
+  windows: "git clone https://github.com/MARE-The-Big-Hack-26/oracolo.git; py oracolo\\start.py"
 };
 
 const cmdEl = document.getElementById("cli-cmd");

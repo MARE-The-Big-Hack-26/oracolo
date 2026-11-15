@@ -68,7 +68,7 @@
             Works on macOS, Linux, and Windows (Python 3.9+). Includes the warehouse simulator, 135-test suite, and browser display for the forklift operator. For live camera tracking, also run <code>pip install -r requirements-vision.txt</code> (requires <code>opencv-python-headless&lt;5</code>).
           </p>
           <a class="btn-primary" href="https://github.com/MARE-The-Big-Hack-26/oracolo/archive/refs/heads/main.zip">Download Source (.zip)</a>
-          <p class="zip-note">Downloaded the .zip? Extract it and open the <code>oracolo-main/repo</code> folder (<code>git clone</code> creates <code>oracolo/repo</code>).</p>
+          <p class="zip-note">Downloaded the .zip? Unzip <code>oracolo-main.zip</code> and double-click <code>START.command</code> (Mac) or <code>START.bat</code> (Windows) — the app opens automatically.</p>
         </div>
 
         <div class="cli-card">
@@ -80,11 +80,11 @@
             </div>
             <button id="copy-cmd" class="copy-btn" type="button">Copy</button>
           </div>
-          <pre class="cli-code"><code id="cli-cmd">git clone https://github.com/MARE-The-Big-Hack-26/oracolo.git && cd oracolo/repo && python3 -m pip install -r requirements.txt && PYTHONPATH=. python3 scripts/run_live.py --loop</code></pre>
+          <pre class="cli-code"><code id="cli-cmd">git clone https://github.com/MARE-The-Big-Hack-26/oracolo.git && python3 oracolo/start.py</code></pre>
           <ul class="cli-steps">
-            <li><b>1. Run the command</b> (after unzipping, open Terminal in <code>oracolo-main/repo</code> or use the <b>From .zip</b> tab).</li>
-            <li><b>2. Open</b> <code>http://localhost:8000</code> in your browser to see the live forklift display and speed limits (<code>L0–L3</code>).</li>
-            <li><b>3. Want the full camera + 3D map panel?</b> Install <code>pip install -r requirements-vision.txt</code>, run <code>PYTHONPATH=. python3 scripts/run_camera.py --source cam:0 --http --no-tunnel --dxf scenarios/stanza.dxf</code>, and open <code>http://localhost:8443</code>.</li>
+            <li><b>1. Run once:</b> creates a local virtual environment and installs dependencies automatically.</li>
+            <li><b>2. Opens automatically:</b> your browser opens the live forklift display (<code>L0–L3</code>) as soon as it is ready.</li>
+            <li><b>3. Full camera + 3D map panel:</b> run <code>pip install -r requirements-vision.txt</code> inside <code>repo/</code>, then <code>PYTHONPATH=. python3 scripts/run_camera.py --source cam:0 --http --no-tunnel</code>.</li>
           </ul>
         </div>
       </div>
