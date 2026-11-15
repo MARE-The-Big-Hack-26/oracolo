@@ -75,7 +75,7 @@ function drawLoupe(c) {
 function drawImg() {
   if (!im.naturalWidth) {
     ci.width = 640; ci.height = 360; const c = ci.getContext('2d'); c.fillStyle = '#07090e'; c.fillRect(0, 0, 640, 360);
-    c.fillStyle = '#cbd5e1'; c.font = '15px sans-serif'; c.fillText('Nessun fotogramma: apri /camera sull\'iPhone, poi premi "Aggiorna immagine"', 20, 180); return;
+    c.fillStyle = '#cbd5e1'; c.font = '15px sans-serif'; c.fillText('Nessun fotogramma: apri /camera sulla camera, poi premi "Aggiorna immagine"', 20, 180); return;
   }
   ci.width = im.naturalWidth; ci.height = im.naturalHeight; const c = ci.getContext('2d'); c.drawImage(im, 0, 0);
   if (overlay) {

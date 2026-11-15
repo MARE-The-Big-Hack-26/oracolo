@@ -1,10 +1,10 @@
-"""Pipeline live con camera fissa (iPhone su treppiede) -> pannello sul Mac.
+"""Pipeline live con camera fissa (dispositivo su treppiede) -> pannello sul Mac.
 
     PYTHONPATH=. python scripts/run_camera.py
     -> si parte SENZA planimetria: nel pannello si sceglie «Carica DXF» (solo DXF) oppure «Disegna planimetria»
     -> ripiego da terminale:  --dxf percorso/del/file.dxf   (i file in scenarios/ sono solo esempi)
-    -> sul Mac:   https://localhost:8443/            (pannello)
-    -> sull'iPhone: https://<IP-del-Mac>:8443/camera   (accetta l'avviso del certificato, premi Avvia)
+    -> sul Mac:    https://localhost:8443/            (pannello)
+    -> sulla camera: https://<IP-del-Mac>:8443/camera (accetta l'avviso del certificato, premi Avvia)
     -> prima volta: https://localhost:8443/calibrate
 
 Sorgenti alternative (piano B): --source video:clip.mp4 [--loop]   --source cam:0
@@ -40,7 +40,7 @@ ap.add_argument("--source", default="stream", help="stream | video:PERCORSO | ca
 ap.add_argument("--detector", default="auto",
                 help="auto | yolo[:pose|11n|11s] | rfdetr[:nano|small|base] | hog | none")
 ap.add_argument("--port", type=int, default=8443)
-ap.add_argument("--http", action="store_true", help="senza HTTPS (solo prove sul Mac: l'iPhone richiede HTTPS)")
+ap.add_argument("--http", action="store_true", help="senza HTTPS (solo prove sul Mac: la camera richiede HTTPS)")
 ap.add_argument("--no-tunnel", action="store_true", help="usa solo LAN locale senza tunnel HTTPS pubblico")
 ap.add_argument("--certs", default="certs")
 ap.add_argument("--marker-id", type=int, default=0)
@@ -95,7 +95,7 @@ serve(app, "0.0.0.0", a.port, cert, key, lan_cam_url)
 
 tunnel_url, _tunnel_proc = (None, None)
 if not a.http and not a.no_tunnel:
-    print("Avvio tunnel HTTPS sicuro (nessun avviso certificato su iPhone/Mac)...")
+    print("Avvio tunnel HTTPS sicuro (nessun avviso certificato su camera/Mac)...")
     tunnel_url, _tunnel_proc = start_tunnel(a.port)
     if tunnel_url:
         app.camera_url = f"{tunnel_url}/camera"
@@ -129,11 +129,11 @@ print(f"\nPannello (Mac):  http://localhost:{a.port}/   (nessun avviso certifica
 print(f"Planimetria:     http://localhost:{a.port}/room")
 print(f"Calibrazione:    http://localhost:{a.port}/calibrate")
 if tunnel_url:
-    print(f"iPhone (HTTPS sicuro):   {tunnel_url}/camera")
+    print(f"Camera (HTTPS sicuro):   {tunnel_url}/camera")
     print(f"Pannello remoto (HTTPS): {tunnel_url}/")
     print(f"Fallback LAN locale:     {lan_cam_url}")
 else:
-    print(f"iPhone (LAN):            {lan_cam_url}")
+    print(f"Camera (LAN):            {lan_cam_url}")
 print("(Ctrl+C per fermare)")
 try:
     while True:

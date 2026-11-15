@@ -68,7 +68,7 @@ button:focus-visible,a:focus-visible{outline:2px solid #38bdf8;outline-offset:2p
   <span id="lim">-- m/s</span>
   <span id="cause">In attesa di telemetria camera...</span>
   <div class="nav">
-    <button id="qrbtn" type="button">QR iPhone</button>
+    <button id="qrbtn" type="button">QR Camera</button>
     <button id="dxfbtn" type="button">Carica DXF</button>
     <a href="/room">Planimetria 3D</a>
     <a href="/calibrate">Calibra camera</a>
@@ -91,10 +91,10 @@ button:focus-visible,a:focus-visible{outline:2px solid #38bdf8;outline-offset:2p
   </aside>
   <div class="box" id="vid">
     <img id="v" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" alt="Video camera">
-    <div id="vempty">In attesa del flusso video dall'iPhone. Premi "QR iPhone" in alto o apri /camera sul telefono.</div>
+    <div id="vempty">In attesa del flusso video dalla camera. Premi "QR Camera" in alto o apri /camera sul dispositivo.</div>
     <div id="nocal">CALIBRAZIONE MANCANTE: apri "Calibra camera"</div>
     <div id="vstat"></div>
-    <div id="qrcard"><b>Connetti Camera iPhone</b><img src="/qr.png" alt="QR Camera"><div class="u" id="qru"></div><div class="h">Inquadra con la fotocamera dell'iPhone, accetta il certificato e premi Avvia.</div></div>
+    <div id="qrcard"><b>Connetti Camera</b><img src="/qr.png" alt="QR Camera"><div class="u" id="qru"></div><div class="h">Inquadra con la fotocamera del dispositivo, accetta il certificato e premi Avvia.</div></div>
   </div>
   <div class="box" id="mapbox">
     <div id="mapwrap"><canvas id="map"></canvas></div>
@@ -119,7 +119,7 @@ button:focus-visible,a:focus-visible{outline:2px solid #38bdf8;outline-offset:2p
   <span><span class="k">Violazioni</span><b id="vio">0</b></span>
   <span><span class="k">Planimetria</span><b id="cadinfo">--</b></span>
   <span><span class="k">Allineamento</span><b id="alst">--</b></span>
-  <span><span class="k">Endpoint iPhone</span><b id="cam"></b></span>
+  <span><span class="k">Endpoint camera</span><b id="cam"></b></span>
 </div>
 <script src="/dxfload.js"></script>
 <script>
@@ -196,7 +196,7 @@ async function poll(){try{const r=await fetch('/state?_='+Date.now(),{cache:'no-
   if((last.version!==undefined&&last.version!==ver)||(scene&&scene.no_scene&&!last.no_scene)){ver=last.version;loadScene();if(last.stale&&feedMode==='snap')setFeed('snap');}
   document.getElementById('choose').style.display=last.no_scene?'flex':'none';
   if(qrManual===null)qrcard.style.display=(!last.no_scene&&(last.age===null||last.age===undefined))?'block':'none';
-  if(last.stale){vstat.style.display='block';vstat.textContent='[PAUSA FLUSSO] Ultimo frame congelato - riapri /camera sull\'iPhone o premi "QR iPhone"';
+  if(last.stale){vstat.style.display='block';vstat.textContent='[PAUSA FLUSSO] Ultimo frame congelato - riapri /camera sulla camera o premi "QR Camera"';
     alarm.style.display='block';
     if((!vid.naturalWidth||vid.naturalWidth<=1||feedMode==='snap')&&Date.now()-lastSnapAt>2000)setFeed('snap');}
   else{vstat.style.display='none';alarm.style.display='none';if(last.age!==null&&last.age!==undefined&&last.age<1.5&&(feedMode!=='mjpg'||!vid.naturalWidth||vid.naturalWidth<=1))setFeed('mjpg');}

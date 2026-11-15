@@ -76,7 +76,7 @@ header a:hover{border-color:#60a5fa;background:#263147;color:#fff}
 <header>
   <span class="brand">ORACOLO // CAD 3D</span>
   <h1>Editor Planimetria</h1>
-  <div class="grp"><div class="seg" role="group" aria-label="Modalità vista"><button id="v3d" class="active" type="button">Vista 3D</button><button id="vTop" type="button">Pianta 2D</button><button id="vCam" type="button">Vista iPhone <kbd>0</kbd></button></div></div>
+  <div class="grp"><div class="seg" role="group" aria-label="Modalità vista"><button id="v3d" class="active" type="button">Vista 3D</button><button id="vTop" type="button">Pianta 2D</button><button id="vCam" type="button">Vista camera <kbd>0</kbd></button></div></div>
   <div class="grp"><button id="undoRoom" type="button" disabled>Annulla <kbd>Ctrl+Z</kbd></button><button id="clearobs" type="button">Svuota</button><button id="dxfbtn" type="button">Carica DXF</button><input type="file" id="dxffile" accept=".dxf" hidden><button id="save" class="pri" type="button">Salva planimetria</button></div>
   <div class="nav"><a href="/calibrate">Calibra camera</a><a href="/">Pannello Live</a></div>
 </header>
@@ -85,7 +85,7 @@ header a:hover{border-color:#60a5fa;background:#263147;color:#fff}
   <aside id="side">
     <nav class="tabs" role="tablist" aria-label="Sezioni editor">
       <button class="tab active" type="button" role="tab" aria-selected="true" data-tab="obs">Oggetti <span class="pill" id="cnt">0</span></button>
-      <button class="tab" type="button" role="tab" aria-selected="false" data-tab="cam">iPhone</button>
+      <button class="tab" type="button" role="tab" aria-selected="false" data-tab="cam">Camera</button>
       <button class="tab" type="button" role="tab" aria-selected="false" data-tab="room">Stanza <span class="pill" id="rvCnt">4</span></button>
     </nav>
     <div id="tabBody">
@@ -113,19 +113,19 @@ header a:hover{border-color:#60a5fa;background:#263147;color:#fff}
         <div class="card"><h2>Oggetti nella Stanza</h2><div id="olist"></div></div>
       </section>
       <section class="pane" data-pane="cam">
-        <div class="card"><h2>Posizione e Orientamento iPhone</h2>
+        <div class="card"><h2>Posizione e Orientamento Camera</h2>
           <div class="grid"><div class="fld">Camera X (m)<input id="cx" type="number" step="0.05" value="4.5"></div><div class="fld">Camera Y (m)<input id="cy" type="number" step="0.05" value="1.1"></div></div>
           <div class="dim">Altezza camera Z (m)<div class="dimrow"><input id="sch" type="range" min="0.3" max="3.5" step="0.05" value="1.8"><input id="ch" type="number" step="0.05" min="0.2" value="1.8"></div></div>
           <div class="dim">Direzione vista (°)<div class="dimrow"><input id="scdir" type="range" min="-180" max="180" step="1" value="165"><input id="cdir" type="number" step="1" min="-180" max="180" value="165"></div></div>
           <div class="dim">Inclinazione pitch (°)<div class="dimrow"><input id="scpitch" type="range" min="-85" max="25" step="1" value="-28"><input id="cpitch" type="number" step="1" min="-85" max="25" value="-28"></div></div>
-          <div class="dim">Apertura FOV iPhone (°)<div class="dimrow"><input id="scfov" type="range" min="35" max="120" step="1" value="75"><input id="cfov" type="number" step="1" min="20" max="360" value="75"></div></div>
-          <div class="row"><button id="alignCam" type="button">Allinea a vista</button><button id="toggleCamView" type="button">Vista iPhone <kbd>0</kbd></button></div>
+          <div class="dim">Apertura FOV camera (°)<div class="dimrow"><input id="scfov" type="range" min="35" max="120" step="1" value="75"><input id="cfov" type="number" step="1" min="20" max="360" value="75"></div></div>
+          <div class="row"><button id="alignCam" type="button">Allinea a vista</button><button id="toggleCamView" type="button">Vista camera <kbd>0</kbd></button></div>
           <button id="saveCam" class="pri" type="button">Salva camera e planimetria</button>
           <div class="guides">
             <span><i class="dot" style="background:#38bdf8"></i>Target a terra / anello: orienta direzione e pitch</span>
             <span><i class="dot" style="background:#f59e0b"></i>Punta piramide: inclina su/giù</span>
           </div>
-          <div class="subcopy">I coni d'ombra 2.5D e il campo visivo si ricalcolano in tempo reale mentre sposti o orienti l'iPhone nella scena.</div>
+          <div class="subcopy">I coni d'ombra 2.5D e il campo visivo si ricalcolano in tempo reale mentre sposti o orienti la camera nella scena.</div>
         </div>
       </section>
       <section class="pane" data-pane="room">
@@ -140,8 +140,8 @@ header a:hover{border-color:#60a5fa;background:#263147;color:#fff}
     </div>
   </aside>
   <div id="view">
-    <div id="vleg"><span><i class="dot" style="background:rgba(56,189,248,.42);border:1px solid #38bdf8"></i>Cono visivo iPhone (FOV)</span><span><i class="dot" style="background:rgba(5,7,11,.78);border:1px solid #475569"></i>Fuori inquadratura</span><span><i class="dot" style="background:rgba(204,51,17,.58);border:1px solid #f59e0b"></i>Zona d'ombra 2.5D</span></div>
-    <div id="hint"><span><kbd>Shift+A</kbd> Nuovo cubo</span><span><kbd>R</kbd> Ruota</span><span><kbd>0</kbd> Vista iPhone</span><span><kbd>Ctrl+Z</kbd> Annulla</span><span>Trascina target, anello o camera</span></div>
+    <div id="vleg"><span><i class="dot" style="background:rgba(56,189,248,.42);border:1px solid #38bdf8"></i>Cono visivo camera (FOV)</span><span><i class="dot" style="background:rgba(5,7,11,.78);border:1px solid #475569"></i>Fuori inquadratura</span><span><i class="dot" style="background:rgba(204,51,17,.58);border:1px solid #f59e0b"></i>Zona d'ombra 2.5D</span></div>
+    <div id="hint"><span><kbd>Shift+A</kbd> Nuovo cubo</span><span><kbd>R</kbd> Ruota</span><span><kbd>0</kbd> Vista camera</span><span><kbd>Ctrl+Z</kbd> Annulla</span><span>Trascina target, anello o camera</span></div>
   </div>
 </div>
 <script>
