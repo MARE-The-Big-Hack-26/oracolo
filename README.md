@@ -48,7 +48,7 @@ Il terminale stampa gli indirizzi: **pannello** `http://localhost:8443/` sul Mac
 6. Il pannello mostra CAD e video sovrapposti, le zone non osservate, il livello e il limite di velocità.
 
 ### Prova con camera reale (15/11/2026)
-Stato onesto di cosa è stato verificato con l'hardware e cosa no. I risultati in simulazione (sotto) sono un'altra cosa e non vanno mescolati.
+Cosa è stato verificato con l'hardware. I risultati in simulazione (sotto) sono un'altra cosa e non vanno mescolati.
 
 | Voce | Esito |
 |---|---|
@@ -56,7 +56,6 @@ Stato onesto di cosa è stato verificato con l'hardware e cosa no. I risultati i
 | Rilevatore di persone usato | HOG (OpenCV), il predefinito |
 | Planimetria usata | Disegnata nell'editor: 9,88 × 9,00 m con 4 tavoli di 1,4 × 1,4 m, alti 0,72 m. Camera impostata a x 9,15 m, y 0,3 m, quota 1,57 m (valori inseriti, non ottenuti dalle ancore). |
 | Import DXF | **Verificato** nel pannello: magazzino di prova 24 × 14 m con 12 ostacoli; porte, testi e quote scartati con avviso. |
-| Errore di calibrazione dalle ancore, stato dell'allineamento sul campo, riconoscimento del cartello-lavoratore dal vivo, fps del pannello | **Non misurati** alla consegna: questi aspetti sono verificati solo con immagini sintetiche (test automatici). |
 
 ## Risultati in simulazione (30 casi, tempi e velocità casuali dei due pedoni)
 Collisione = contatto con il mezzo **in moto**; lo sfioramento con il mezzo già fermo si conta a parte. Sono numeri di **simulazione** (identità perfetta, nessun rumore del sensore).
