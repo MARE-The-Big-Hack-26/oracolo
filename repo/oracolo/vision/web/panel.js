@@ -214,9 +214,7 @@
   cadinfo.onclick = () => { if (scene && scene.cad) cadrep.style.display = cadrep.style.display === 'block' ? 'none' : 'block'; };
   const pickDxf = () => oracoloPickDxf($('dxffile'), (rep) => { showRep(rep); if (rep.ok) loadScene(); });
   $('dxfbtn').onclick = pickDxf; $('dxfbtn2').onclick = pickDxf;
-  if (typeof oracoloMountSamples === 'function' && $('samplesel')) {
-    oracoloMountSamples($('samplesel'), (rep) => { showRep(rep); if (rep.ok) loadScene(); });
-  }
+  if (typeof oracoloMountSamples === 'function' && $('samplesel')) oracoloMountSamples($('samplesel'), (rep) => { showRep(rep); if (rep.ok) loadScene(); });
 
   function updCad() {
     const c = scene && scene.cad;
