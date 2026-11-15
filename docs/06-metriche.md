@@ -24,13 +24,13 @@ Magazzino 30 × 20 m importato dal DXF d'esempio, carrello lungo la corsia princ
 | 3 camere | 79% | reactive | 0/30 | 1 | 16.8 s |
 | 3 camere | 79% | oracolo | 0/30 | 1 | 19.7 s |
 
-**Messaggio onesto:** (1) dove le camere non vedono, il sistema reattivo collide (7/30) e Oracolo no, ma il carrello deve strisciare (40,8 s); (2) la **copertura** decide il prezzo della sicurezza (44% → 40,8 s, 73% → 19,8 s); (3) con buona copertura anche il reattivo evita le collisioni in questo scenario, quindi il valore di Oracolo sta nei punti ciechi; (4) la zona fissa a 5 km/h ha 10/30 collisioni e 9 sfioramenti perché non guarda dov'è la gente.
+**Messaggio onesto:** (1) dove le camere non vedono, il sistema reattivo collide (7/30) e ClearCorner no, ma il carrello deve strisciare (40,8 s); (2) la **copertura** decide il prezzo della sicurezza (44% → 40,8 s, 73% → 19,8 s); (3) con buona copertura anche il reattivo evita le collisioni in questo scenario, quindi il valore di ClearCorner sta nei punti ciechi; (4) la zona fissa a 5 km/h ha 10/30 collisioni e 9 sfioramenti perché non guarda dov'è la gente.
 Sono numeri di **simulazione** (identità perfetta, nessun rumore): da affiancare ai risultati sulle clip.
 
 ## Metriche da produrre sulle clip reali
 | Metrica | Definizione | Obiettivo |
 |---|---|---|
-| Collisioni virtuali | Distanza pedone–macchina < contatto (da verità a terra) | 0 con Oracolo; > 0 con le baseline |
+| Collisioni virtuali | Distanza pedone–macchina < contatto (da verità a terra) | 0 con ClearCorner; > 0 con le baseline |
 | Margine minimo | Distanza e tempo minimi pedone–macchina | maggiore delle baseline |
 | Falso "libero" | Frame con livello 0 mentre una persona poteva raggiungere la traiettoria entro T | 0 |
 | Rallentamento inutile | Tempo con velocità ridotta senza pedone nelle vicinanze | basso e dichiarato |

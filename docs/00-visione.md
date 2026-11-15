@@ -1,6 +1,6 @@
 # 00 · Visione del progetto
 
-**Oracolo** — *rilevazione dei punti ciechi per macchine industriali.*
+**ClearCorner** — *rilevazione dei punti ciechi per macchine industriali.*
 
 ## In una frase
 Una camera segnala quattro livelli di pericolo per possibili collisioni tra pedoni e macchine industriali, **anche quando il pedone non si vede ancora**, e invia alla macchina un comando che la rallenta o la ferma, con la regola che *ignoto non significa libero*.
@@ -26,10 +26,10 @@ Carrelli, AGV e mezzi di cantiere uccidono e feriscono soprattutto negli **incro
 - Misura il **prezzo della sicurezza**: quanto tempo di produzione si perde e come lo riduce la posizione delle camere. In simulazione sul magazzino: 1 camera a fine corsia (44% di copertura) → 0 collisioni ma 40,8 s di transito; 2 camere sugli incroci (73%) → 0 collisioni e 19,8 s (13,8 s senza sistema). `coverage()` indica dove montarle.
 
 ## Cosa NON è (da dire sempre)
-Non è un sistema di sicurezza certificato. Le norme per la sicurezza funzionale (ISO 13849, IEC 62061, IEC 61508) non prevedono oggi requisiti specifici per l'AI; per uno stop reale serve una catena certificata (relè/PLC di sicurezza, sensori safety). Oracolo è un livello **sopra**: avvisa, limita, registra. Percorso realistico: modalità ombra → solo avvisi → limitatore morbido → integrazione con la catena di sicurezza.
+Non è un sistema di sicurezza certificato. Le norme per la sicurezza funzionale (ISO 13849, IEC 62061, IEC 61508) non prevedono oggi requisiti specifici per l'AI; per uno stop reale serve una catena certificata (relè/PLC di sicurezza, sensori safety). ClearCorner è un livello **sopra**: avvisa, limita, registra. Percorso realistico: modalità ombra → solo avvisi → limitatore morbido → integrazione con la catena di sicurezza.
 
 ## Collegamento con FieldVision (Challenge 03, Mare Group)
-| Obiettivo della challenge | Cosa mostra Oracolo |
+| Obiettivo della challenge | Cosa mostra ClearCorner |
 |---|---|
 | Rilevare elementi mobili | Pedoni (e macchina) tracciati dalla camera |
 | Gestire l'occlusione | Zone cieche, fantasmi, memoria con scadenza |
@@ -37,4 +37,4 @@ Non è un sistema di sicurezza certificato. Le norme per la sicurezza funzionale
 | Segnalare la perdita di affidabilità | Frame fermo o scena degradata → FERMA, dichiarato sull'HUD |
 
 ## Scelte modellistiche dichiarate
-Concept base *Oracolo dell'Angolo* + variante 1 **Limite di Visibilità** (velocità massima dalla distanza di visibilità) + variante 2 **Sguardo Asimmetrico** (altezza dell'occhio: chi vede chi). Opzionale: variante 4 **Scatola Nera** (replay della scena). La macchina è un *digital twin* nel prototipo.
+Concept base *ClearCorner dell'Angolo* + variante 1 **Limite di Visibilità** (velocità massima dalla distanza di visibilità) + variante 2 **Sguardo Asimmetrico** (altezza dell'occhio: chi vede chi). Opzionale: variante 4 **Scatola Nera** (replay della scena). La macchina è un *digital twin* nel prototipo.

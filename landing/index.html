@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ClearCorner — Industrial Blind-Spot Detection</title>
+  <link rel="icon" href="icon.png" type="image/png" />
+  <link rel="apple-touch-icon" href="icon.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="tokens.css" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <nav class="navbar" aria-label="Primary">
+    <a href="#top" class="nav-brand">
+      <img class="app-icon-img" src="icon.png" alt="ClearCorner icon" width="28" height="28" />
+      <span>ClearCorner</span>
+    </a>
+    <div class="nav-links">
+      <a href="#demo">Demo</a>
+      <a href="#install">Install</a>
+      <a href="https://github.com/MARE-The-Big-Hack-26/oracolo" target="_blank" rel="noopener noreferrer">GitHub</a>
+    </div>
+    <a class="btn-primary btn-nav" href="https://github.com/MARE-The-Big-Hack-26/oracolo/archive/refs/heads/main.zip">Download</a>
+  </nav>
+
+  <header id="top" class="hero">
+    <div class="waves" id="waves" aria-hidden="true"></div>
+    <div class="container hero-content">
+      <h1>Stop collisions in the blind spot before they happen.</h1>
+      <p class="hero-sub">
+        ClearCorner imports your warehouse CAD (DXF), maps 2.5D camera shadow zones, and caps forklift speed whenever a pedestrian disappears behind a rack.
+      </p>
+      <div class="hero-cta">
+        <a class="btn-primary" href="https://github.com/MARE-The-Big-Hack-26/oracolo/archive/refs/heads/main.zip">Download Source (.zip)</a>
+        <a class="btn-secondary" href="#install">Run in Terminal</a>
+      </div>
+      <div class="os-note">macOS · Linux · Windows · Python 3.10+ · Fail-safe TTL Watchdog</div>
+    </div>
+    <a class="v2-defiler" href="#demo" aria-label="Scroll to interactive simulator">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M19 12l-7 7-7-7"/></svg>
+    </a>
+  </header>
+
+  <section id="demo" class="demo-section">
+    <div class="container">
+      <h2>Blind-spot prediction in action.</h2>
+      <p class="section-lead">ClearCorner estimates occluded pedestrian trajectories behind racks and caps forklift speed before a collision can occur.</p>
+
+      <div class="video-shell">
+        <video id="demo-video" autoplay muted loop playsinline preload="metadata" src="demo-blindspot.mp4"></video>
+      </div>
+    </div>
+  </section>
+
+  <section id="install" class="section">
+    <div class="container">
+      <div class="install-box">
+        <div>
+          <div class="install-brand">
+            <img class="app-icon-img app-icon-img-lg" src="icon.png" alt="ClearCorner icon" width="44" height="44" />
+            <span>ClearCorner · Open Source Prototype</span>
+          </div>
+          <h2>Download or run in one command.</h2>
+          <p class="section-lead">
+            Works on macOS, Linux, and Windows. Includes the warehouse simulator, 67-test suite, and iPhone Safari cab receiver.
+          </p>
+          <a class="btn-primary" href="https://github.com/MARE-The-Big-Hack-26/oracolo/archive/refs/heads/main.zip">Download Source (.zip)</a>
+        </div>
+
+        <div class="cli-card">
+          <div class="cli-head">
+            <div class="os-tabs" role="tablist">
+              <button class="os-tab active" data-os="unix" type="button">macOS / Linux</button>
+              <button class="os-tab" data-os="windows" type="button">Windows</button>
+            </div>
+            <button id="copy-cmd" class="copy-btn" type="button">Copy</button>
+          </div>
+          <pre class="cli-code"><code id="cli-cmd">git clone https://github.com/MARE-The-Big-Hack-26/oracolo.git && cd oracolo/repo && pip install -r requirements.txt && make live</code></pre>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <footer class="footer">
+    <div class="container footer-inner">
+      <span>ClearCorner · The Big Hack 2026 (Challenge 03 FieldVision). Prototype, not a certified safety system.</span>
+      <div class="footer-links">
+        <a href="#demo">Demo</a>
+        <a href="#install">Install</a>
+        <a href="https://github.com/MARE-The-Big-Hack-26/oracolo" target="_blank" rel="noopener noreferrer">GitHub</a>
+      </div>
+    </div>
+  </footer>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>

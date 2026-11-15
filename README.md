@@ -1,4 +1,4 @@
-# Oracolo — rilevazione dei punti ciechi per macchine industriali
+# ClearCorner (Oracolo) — rilevazione dei punti ciechi per macchine industriali
 
 > Prototipo da hackathon (The Big Hack 2026 · Challenge 03 FieldVision, Mare Group). **Non è un sistema di sicurezza certificato.**
 

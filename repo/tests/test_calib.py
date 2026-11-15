@@ -114,3 +114,27 @@ def test_calibrazione_3d_con_distorsione_radiale():
     assert cal.rms_px < 1.0
     assert abs(cal.k1 - (-0.18)) < 0.03
 
+
+def test_overlay_vertices_proiettati():
+    wor3 = [
+        [1.0, 1.4, 0.0], [4.0, 1.4, 0.0], [4.0, 3.5, 0.0], [1.0, 3.5, 0.0],
+        [1.2, 2.0, 0.8], [3.8, 2.8, 1.2],
+    ]
+    cal = Calibration.from_pairs(synth.project(wor3), wor3, (synth.W, synth.H), (0.0, 0.0), 1.0)
+    scene = Scene(
+        box(0.0, -3.0, 5.0, 4.0),
+        [
+            Occluder("dietro", box(1.0, -2.5, 3.0, -1.5), 1.0),
+            Occluder("tavolo#1", box(2.0, 2.0, 3.0, 3.0), 0.75),
+        ],
+    )
+    ov = overlay_polys(cal, scene)
+    verts = ov["vertices"]
+    assert len(verts) >= 8
+    assert not any("dietro" in v["label"] for v in verts)
+    top_tavolo = [v for v in verts if v["label"].startswith("tavolo") and abs(v["z"] - 0.75) < 1e-3]
+    assert len(top_tavolo) == 4
+    for v in top_tavolo:
+        u, vv = cal.to_image(v["x"], v["y"], v["z"])
+        assert abs(v["u"] - u) < 0.2 and abs(v["v"] - vv) < 0.2
+

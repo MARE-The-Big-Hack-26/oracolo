@@ -1,39 +1,58 @@
 <!doctype html><html lang="it"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Oracolo - Pannello di Controllo</title><style>
+<title>ClearCorner - Pannello di Controllo</title><style>
 *{box-sizing:border-box}
 ::selection{background:#1d4ed8;color:#ffffff}
 html,body{margin:0;height:100%;background:#0b0e14;color:#f1f5f9;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;font-variant-numeric:tabular-nums;-webkit-font-smoothing:antialiased}
 button:focus-visible,a:focus-visible{outline:2px solid #38bdf8;outline-offset:2px}
-#bar{display:flex;align-items:center;gap:14px;padding:10px 18px;background:#007a5a;border-bottom:2px solid rgba(255,255,255,.22);transition:background .12s;font-weight:700;min-height:58px;flex-wrap:wrap}
+#bar{display:flex;align-items:center;gap:12px;padding:10px 18px;background:#007a5a;border-bottom:1px solid rgba(255,255,255,.22);transition:background .15s;font-weight:700;min-height:58px;flex-wrap:wrap}
 .brand{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;letter-spacing:.08em;text-transform:uppercase;padding:4px 8px;border-radius:4px;background:rgba(0,0,0,.35);color:#ffffff;border:1px solid rgba(255,255,255,.28)}
-#lvl{font-size:24px;letter-spacing:.04em;color:#ffffff;text-transform:uppercase}
-#lim{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:20px;color:#ffffff;background:rgba(0,0,0,.28);padding:3px 10px;border-radius:6px;border:1px solid rgba(255,255,255,.25)}
-#cause{font-size:16px;font-weight:600;color:#ffffff;flex:1;min-width:180px}
+#lvl{font-size:21px;letter-spacing:.03em;color:#ffffff;text-transform:uppercase}
+#lim{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:15px;color:#ffffff;background:rgba(0,0,0,.32);padding:4px 10px;border-radius:6px;border:1px solid rgba(255,255,255,.25)}
+#cause{font-size:15px;font-weight:600;color:#ffffff;flex:1;min-width:180px}
 .nav{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-#bar a,#bar button{color:#ffffff;font-weight:600;font-size:13px;background:rgba(9,13,22,.48);border:1px solid rgba(255,255,255,.42);padding:6px 12px;border-radius:6px;cursor:pointer;text-decoration:none;transition:background .12s,border-color .12s}
+#bar a,#bar button{color:#ffffff;font-weight:600;font-size:13px;background:rgba(9,13,22,.48);border:1px solid rgba(255,255,255,.42);padding:6px 12px;border-radius:6px;cursor:pointer;text-decoration:none;transition:background .15s,border-color .15s}
 #bar a:hover,#bar button:hover{background:rgba(9,13,22,.72);border-color:#ffffff}
-#main{display:flex;gap:12px;padding:12px;height:calc(100% - 98px);min-height:0;position:relative}
-#rail{width:190px;background:#111621;border:1px solid #242c3d;border-radius:8px;padding:10px;display:flex;flex-direction:column;gap:8px;flex-shrink:0}
-.rail-hd{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#cbd5e1;padding-bottom:6px;border-bottom:1px solid #242c3d}
-.step-card{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:6px;background:#161c28;border:1px solid #263042;color:#cbd5e1;transition:transform .12s,border-color .12s,background .12s}
-.step-card.active{background:#1e2636;border-color:#ffffff;color:#ffffff;box-shadow:0 4px 10px rgba(0,0,0,.4)}
-.shape{width:16px;height:16px;flex-shrink:0;display:inline-block}
+#main{display:flex;gap:12px;padding:12px;height:calc(100% - 96px);min-height:0;position:relative}
+#rail{width:248px;background:#111621;border:1px solid #242c3d;border-radius:8px;padding:10px;display:flex;flex-direction:column;gap:10px;flex-shrink:0;overflow-y:auto}
+.sec-hd{font-size:12px;font-weight:700;color:#e2e8f0;display:flex;align-items:center;justify-content:space-between;padding-bottom:4px;border-bottom:1px solid #1e2636}
+.steps{display:flex;flex-direction:column;gap:5px}
+.step-card{display:flex;align-items:center;gap:9px;padding:6px 8px;border-radius:6px;background:#161c28;border:1px solid #242c3d;color:#cbd5e1;transition:border-color .15s,background .15s}
+.step-card.active{background:#1e293b;border-color:#ffffff;color:#ffffff}
+.shape{width:14px;height:14px;flex-shrink:0;display:inline-block}
 .shape.s0{background:#009e73;border-radius:50%;border:2px solid #ffffff}
 .shape.s1{background:#e69f00;clip-path:polygon(50% 8%,95% 92%,5% 92%)}
 .shape.s2{background:#d55e00;clip-path:polygon(50% 4%,96% 50%,50% 96%,4% 50%)}
 .shape.s3{background:#cc3311;border-radius:2px;border:2px solid #ffffff}
-.step-txt{display:flex;flex-direction:column;gap:2px;min-width:0}
-.step-txt b{font-size:13px;letter-spacing:.02em;color:inherit}
+.step-txt{display:flex;flex-direction:column;gap:1px;min-width:0}
+.step-txt b{font-size:13px;color:inherit}
 .step-txt span{font-size:12px;color:#94a3b8}
 .step-card.active .step-txt span{color:#e2e8f0}
-.rail-note{margin-top:auto;padding-top:8px;border-top:1px solid #242c3d;font-size:12px;line-height:1.4;color:#94a3b8}
+.tblock{background:#151b27;border:1px solid #242c3d;border-radius:6px;padding:8px 9px;display:flex;flex-direction:column;gap:6px}
+.pill{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px;font-weight:700;padding:2px 6px;border-radius:4px;background:#1e293b;color:#cbd5e1}
+.pill.ok{background:#14532d;color:#86efac}
+.pill.warn{background:#78350f;color:#fde68a}
+.pill.bad{background:#7f1d1d;color:#fecaca}
+.vspd{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:14px;font-weight:700;color:#f8fafc}
+.vsub{font-size:12px;color:#94a3b8}
+.bar-track{height:6px;border-radius:3px;background:#0b0e14;overflow:hidden}
+.bar-fill{height:100%;width:100%;transform:scaleX(0);transform-origin:left;background:#22c55e;transition:transform .12s,background .15s}
+.plist{display:flex;flex-direction:column;gap:4px;max-height:110px;overflow-y:auto}
+.prow{display:flex;align-items:center;justify-content:space-between;gap:6px;font-size:12px;padding:4px 6px;border-radius:4px;background:#0f141e}
+.pid{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-weight:700;color:#38bdf8}
+.pmv{font-size:12px;color:#94a3b8}
+.pmv.mv{color:#fde047;font-weight:600}
+.pdata{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;color:#e2e8f0}
+.empty-msg{font-size:12px;color:#94a3b8;padding:2px 0}
+.evlog{display:flex;flex-direction:column;gap:4px;font-size:12px}
+.erow{display:flex;gap:6px;color:#cbd5e1;line-height:1.35}
+.erow .ts{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;color:#94a3b8;flex-shrink:0}
 .box{background:#121722;border:1px solid #242c3d;border-radius:8px;overflow:hidden;position:relative;min-height:0}
-#vid{flex:1.2;display:flex;align-items:center;justify-content:center}
+#vid{flex:1.15;display:flex;align-items:center;justify-content:center}
 #vid img#v{width:100%;height:100%;object-fit:contain;display:none}
 #vempty{padding:24px;text-align:center;color:#cbd5e1;font-size:14px;max-width:360px;line-height:1.5}
 #vstat{position:absolute;left:12px;bottom:12px;right:12px;background:#7c2d12;color:#ffffff;border:1px solid #fb923c;padding:8px 12px;border-radius:6px;font-size:13px;font-weight:600;display:none}
-#alarm{position:absolute;left:50%;top:18px;transform:translateX(-50%);background:#991b1b;color:#ffffff;border:2px solid #ffffff;padding:10px 20px;border-radius:8px;font-size:15px;font-weight:800;letter-spacing:.03em;box-shadow:0 8px 16px rgba(0,0,0,.55);z-index:15;display:none;text-align:center}
+#alarm{position:absolute;left:50%;top:18px;transform:translateX(-50%);background:#991b1b;color:#ffffff;border:2px solid #ffffff;padding:10px 20px;border-radius:8px;font-size:15px;font-weight:800;box-shadow:0 8px 16px rgba(0,0,0,.55);z-index:15;display:none;text-align:center}
 #mapbox{flex:1;display:flex;flex-direction:column}
 #mapwrap{flex:1;position:relative;min-height:0}
 #map{width:100%;height:100%;display:block}
@@ -55,20 +74,21 @@ button:focus-visible,a:focus-visible{outline:2px solid #38bdf8;outline-offset:2p
 #choose .btns{display:flex;gap:12px;justify-content:center}
 #choose button,#choose a{font-size:15px;font-weight:600;padding:11px 18px;border-radius:8px;border:1px solid #334155;background:#2563eb;color:#ffffff;text-decoration:none;cursor:pointer}
 #choose a{background:#1e293b}
-#cadrep{position:fixed;top:64px;right:14px;max-width:420px;max-height:60%;overflow:auto;background:#161c28;border:1px solid #334155;border-radius:10px;padding:10px 14px;font-size:13px;z-index:25;display:none;box-shadow:0 10px 30px rgba(0,0,0,.6)}
+#cadrep{position:fixed;top:64px;right:14px;max-width:420px;max-height:60%;overflow:auto;background:#161c28;border:1px solid #334155;border-radius:10px;padding:10px 14px;font-size:13px;z-index:25;display:none;box-shadow:0 8px 16px rgba(0,0,0,.5)}
 #cadrep .warn{color:#fbbf24;margin-top:4px}#cadrep .err{color:#f87171;margin-top:4px}
 #alignbar{position:fixed;top:64px;left:14px;max-width:58%;z-index:22;display:none;padding:9px 14px;border-radius:8px;font-weight:600;font-size:14px;box-shadow:0 8px 24px rgba(0,0,0,.55)}
 #alignbar.bad{background:#991b1b;color:#ffffff}#alignbar.warn{background:#b46900;color:#ffffff}
 #cadinfo{cursor:pointer;text-decoration:underline dotted}
-@media (max-width:960px){#main{flex-direction:column;height:auto}#rail{width:100%;flex-direction:row;flex-wrap:wrap}}
+@media (max-width:960px){#main{flex-direction:column;height:auto}#rail{width:100%}}
 </style></head><body>
 <div id="bar">
-  <span class="brand">ORACOLO // FIELDVISION</span>
+  <span class="brand">CLEARCORNER // MONITOR</span>
   <span id="lvl">IN ATTESA</span>
-  <span id="lim">-- m/s</span>
+  <span id="lim">Limite -- m/s</span>
   <span id="cause">In attesa di telemetria camera...</span>
   <div class="nav">
     <button id="qrbtn" type="button">QR Camera</button>
+    <button id="cabbtn" type="button">QR Muletto</button>
     <button id="dxfbtn" type="button">Carica DXF</button>
     <a href="/room">Planimetria 3D</a>
     <a href="/calibrate">Calibra camera</a>
@@ -76,25 +96,40 @@ button:focus-visible,a:focus-visible{outline:2px solid #38bdf8;outline-offset:2p
 </div>
 <input type="file" id="dxffile" accept=".dxf" hidden>
 <div id="choose"><div class="c"><h2>Scegli la planimetria</h2>
-<p>Importa il tuo file DXF (solo DXF) oppure disegna la stanza con l'editor. Non c'è una stanza predefinita.</p>
+<p>Importa un file DXF oppure disegna la stanza con l'editor 3D per avviare il monitoraggio.</p>
 <div class="btns"><button id="dxfbtn2" type="button">Carica DXF</button><a href="/room">Disegna planimetria</a><select id="samplesel" title="Planimetria di prova" style="background:#0b1220;color:#e2e8f0;border:1px solid #334155;border-radius:8px;padding:8px 10px;font:inherit"><option value="">Planimetria di prova…</option></select></div></div></div>
 <div id="cadrep"></div><div id="alignbar"></div>
 <div id="main">
   <div id="alarm">AFFIDABILITA PERSA - ARRESTO AUTOMATICO (NESSUN COMANDO VALIDO)</div>
-  <aside id="rail" aria-label="Scala livelli di sicurezza">
-    <div class="rail-hd">Scala Sicurezza (4 Livelli)</div>
-    <div class="step-card" id="lv0"><i class="shape s0"></i><div class="step-txt"><b>L0 · NORMALE</b><span>Via libera visibile</span></div></div>
-    <div class="step-card" id="lv1"><i class="shape s1"></i><div class="step-txt"><b>L1 · ATTENZIONE</b><span>Cautela / margine</span></div></div>
-    <div class="step-card" id="lv2"><i class="shape s2"></i><div class="step-txt"><b>L2 · RALLENTA</b><span>Zona cieca / ombra</span></div></div>
-    <div class="step-card" id="lv3"><i class="shape s3"></i><div class="step-txt"><b>L3 · FERMA</b><span>Pericolo o fail-safe</span></div></div>
-    <div class="rail-note">Principio: <b>ignoto != libero</b>. Ogni stato usa forma, codice L0-L3 e palette Okabe-Ito.</div>
+  <aside id="rail" aria-label="Telemetria e scala sicurezza">
+    <div class="sec-hd"><span>Scala Sicurezza</span></div>
+    <div class="steps">
+      <div class="step-card" id="lv0"><i class="shape s0"></i><div class="step-txt"><b>L0 · NORMALE</b><span>Via libera visibile</span></div></div>
+      <div class="step-card" id="lv1"><i class="shape s1"></i><div class="step-txt"><b>L1 · ATTENZIONE</b><span>Cautela / margine</span></div></div>
+      <div class="step-card" id="lv2"><i class="shape s2"></i><div class="step-txt"><b>L2 · RALLENTA</b><span>Zona cieca o persona</span></div></div>
+      <div class="step-card" id="lv3"><i class="shape s3"></i><div class="step-txt"><b>L3 · FERMA</b><span>Pericolo o fail-safe</span></div></div>
+    </div>
+    <div class="tblock">
+      <div class="sec-hd"><span>Muletto</span><span class="pill warn" id="vbadge">IN ATTESA</span></div>
+      <div class="vspd" id="vspd">-- m/s</div>
+      <div class="bar-track"><div class="bar-fill" id="vbar"></div></div>
+      <div class="vsub" id="vlimlbl">Limite: --</div>
+    </div>
+    <div class="tblock">
+      <div class="sec-hd"><span>Persone in Area</span><span class="pill" id="pcnt">0</span></div>
+      <div class="plist" id="plist"><div class="empty-msg">Nessun pedone nell'area</div></div>
+    </div>
+    <div class="tblock">
+      <div class="sec-hd"><span>Ultimi Eventi</span></div>
+      <div class="evlog" id="evlog"><div class="empty-msg">In attesa di eventi...</div></div>
+    </div>
   </aside>
   <div class="box" id="vid">
     <img id="v" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" alt="Video camera">
     <div id="vempty">In attesa del flusso video dalla camera. Premi "QR Camera" in alto o apri /camera sul dispositivo.</div>
     <div id="nocal">CALIBRAZIONE MANCANTE: apri "Calibra camera"</div>
     <div id="vstat"></div>
-    <div id="qrcard"><b>Connetti Camera</b><img src="/qr.png" alt="QR Camera"><div class="u" id="qru"></div><div class="h">Inquadra con la fotocamera del dispositivo, accetta il certificato e premi Avvia.</div></div>
+    <div id="qrcard"><b id="qrtitle">Connetti Camera</b><img id="qrimg" src="/qr.png" alt="QR Code"><div class="u" id="qru"></div><div class="h" id="qrhint">Inquadra con la fotocamera del dispositivo, accetta il certificato e premi Avvia.</div></div>
   </div>
   <div class="box" id="mapbox">
     <div id="mapwrap"><canvas id="map"></canvas></div>
@@ -105,8 +140,7 @@ button:focus-visible,a:focus-visible{outline:2px solid #38bdf8;outline-offset:2p
       <span class="lg"><i class="sw" style="background:rgba(148,163,184,.32);border-color:#94a3b8"></i>Fuori vista / ombra</span>
       <span class="lg"><i class="sw" style="background:#451a03;border-color:#f59e0b"></i>Ostacolo / scaffale</span>
       <span class="lg"><i class="sw line" style="background:#56b4e9"></i>Campo visivo (FOV)</span>
-      <span class="lg"><i class="sw dot" style="background:#93c5fd"></i>Camera fissa</span>
-      <span class="lg"><i class="sw dot" style="background:#56b4e9;border-color:#ffffff"></i>Pedone (P1...)</span>
+      <span class="lg"><i class="sw dot" style="background:#38bdf8;border-color:#fde047"></i>Pedone + vettore moto</span>
       <span class="lg"><i class="sw" style="background:linear-gradient(90deg,#009e73,#cc3311);border-color:#ffffff"></i>Muletto e traiettoria</span>
     </div>
   </div>
@@ -114,120 +148,11 @@ button:focus-visible,a:focus-visible{outline:2px solid #38bdf8;outline-offset:2p
 <div id="foot">
   <span><span class="k">FPS</span><b id="fps">--</b></span>
   <span><span class="k">Latenza</span><b id="lat">--</b></span>
-  <span><span class="k">Persone</span><b id="np">0</b></span>
-  <span><span class="k">Vel. Muletto</span><b id="vs">--</b></span>
   <span><span class="k">Violazioni</span><b id="vio">0</b></span>
   <span><span class="k">Planimetria</span><b id="cadinfo">--</b></span>
   <span><span class="k">Allineamento</span><b id="alst">--</b></span>
   <span><span class="k">Endpoint camera</span><b id="cam"></b></span>
 </div>
 <script src="/dxfload.js"></script>
-<script>
-const COL=["#007a5a","#b46900","#b84a00","#991b1b"], NAME=["L0 · NORMALE","L1 · ATTENZIONE","L2 · RALLENTA","L3 · FERMA"];
-let scene=null, ver=-1, last=null, qrManual=null, feedMode='', lastSnapAt=0, lastPollOk=Date.now();
-const qrcard=document.getElementById('qrcard'), vid=document.getElementById('v'), vempty=document.getElementById('vempty'), vstat=document.getElementById('vstat'), alarm=document.getElementById('alarm');
-document.getElementById('qrbtn').onclick=()=>{qrManual=qrcard.style.display==='none';qrcard.style.display=qrManual?'block':'none';};
-qrcard.onclick=()=>{qrManual=false;qrcard.style.display='none';};
-function setActiveStep(lv){for(let i=0;i<4;i++){const el=document.getElementById('lv'+i);if(el)el.classList.toggle('active',i===lv);}}
-let feedSince=0;
-function setFeed(mode){
-  feedMode=mode;feedSince=Date.now();
-  if(mode==='snap'){lastSnapAt=Date.now();vid.src='/snapshot.jpg?_='+lastSnapAt;}
-  else{vid.src='/video.mjpg?_='+Date.now();}
-}
-vid.onload=()=>{if(vid.src.indexOf('data:')===0)return;vid.style.display='block';vempty.style.display='none';};
-vid.onerror=()=>{if(feedMode==='mjpg'){setFeed('snap');}else{vid.style.display='none';vempty.style.display='block';}};
-window.addEventListener('pageshow',(e)=>{if(e.persisted)setFeed('mjpg');});
-setTimeout(()=>{if((!vid.naturalWidth||vid.naturalWidth<=1)&&feedMode==='mjpg')setFeed('snap');},1200);
-setFeed('mjpg');
-const cleanObs=s=>{const n=(s||'').replace(/#\d+$/,'').replace(/_H\d+(?:[.,]\d+)?$/i,'').replace(/_/g,' ').trim();return /^ostacolo \d+$/i.test(n)?'':n;};
-const cv=document.getElementById('map'), ctx=cv.getContext('2d');
-function view(){const r=cv.getBoundingClientRect(),dpr=window.devicePixelRatio||1;const cw=Math.max(1,Math.round(r.width*dpr)),ch=Math.max(1,Math.round(r.height*dpr));if(cv.width!==cw)cv.width=cw;if(cv.height!==ch)cv.height=ch;
-  const xs=scene.bounds.map(p=>p[0]),ys=scene.bounds.map(p=>p[1]);const minx=Math.min(...xs),maxx=Math.max(...xs),miny=Math.min(...ys),maxy=Math.max(...ys);
-  const pad=24*dpr,sc=Math.min((cv.width-2*pad)/Math.max(maxx-minx,0.1),(cv.height-2*pad)/Math.max(maxy-miny,0.1));
-  const ox=(cv.width-sc*(maxx-minx))/2,oy=(cv.height-sc*(maxy-miny))/2;
-  return {sc,dpr,w:maxx-minx,h:maxy-miny,X:x=>ox+(x-minx)*sc,Y:y=>cv.height-oy-(y-miny)*sc};}
-function poly(v,pts,fill,stroke,lw){ctx.beginPath();pts.forEach((p,i)=>i?ctx.lineTo(v.X(p[0]),v.Y(p[1])):ctx.moveTo(v.X(p[0]),v.Y(p[1])));ctx.closePath();
-  if(fill){ctx.fillStyle=fill;ctx.fill();}if(stroke){ctx.strokeStyle=stroke;ctx.lineWidth=lw||1;ctx.stroke();}}
-// mappa fog: decodificata UNA volta per contenuto in un canvas nx*ny (1 pixel per cella), poi scalata con un solo drawImage
-const FOG_PAL={1:[0,158,115,92],2:[148,163,184,56],3:[230,159,0,82],4:[204,51,17,148]};
-let fogKey=null,fogCv=null;
-function fogCanvas(f){
-  if(fogKey!==f.b64||!fogCv||fogCv.width!==f.nx||fogCv.height!==f.ny){
-    const bin=atob(f.b64);fogCv=fogCv||document.createElement('canvas');fogCv.width=f.nx;fogCv.height=f.ny;
-    const c=fogCv.getContext('2d'),im=c.createImageData(f.nx,f.ny),d=im.data;
-    for(let iy=0;iy<f.ny;iy++){const row=f.ny-1-iy;
-      for(let ix=0;ix<f.nx;ix++){const p=FOG_PAL[bin.charCodeAt(iy*f.nx+ix)];if(!p)continue;const o=(row*f.nx+ix)*4;d[o]=p[0];d[o+1]=p[1];d[o+2]=p[2];d[o+3]=p[3];}}
-    c.putImageData(im,0,0);fogKey=f.b64;}
-  return fogCv;}
-let drawQueued=false;
-function schedDraw(){if(drawQueued)return;drawQueued=true;requestAnimationFrame(()=>{drawQueued=false;draw();});}
-function draw(){if(!scene)return;const v=view();ctx.clearRect(0,0,cv.width,cv.height);
-  poly(v,scene.bounds,'#0d111a','#94a3b8',2*v.dpr);
-  if(last&&last.fog){const f=last.fog;ctx.imageSmoothingEnabled=false;
-    ctx.drawImage(fogCanvas(f),v.X(f.minx),v.Y(f.miny+f.ny*f.res),f.nx*f.res*v.sc,f.ny*f.res*v.sc);}
-  else if(scene.shadows){scene.shadows.forEach(s=>poly(v,s,'rgba(255,200,0,.28)',null,0));}
-  scene.occluders.forEach(o=>{if(!o.coords.length)return;poly(v,o.coords,'#3b230c','#f59e0b',2*v.dpr);
-    const lbl=cleanObs(o.name);if(!lbl)return;
-    const xs=o.coords.map(p=>p[0]),ys=o.coords.map(p=>p[1]),cx=(Math.min(...xs)+Math.max(...xs))/2,cy=(Math.min(...ys)+Math.max(...ys))/2;
-    ctx.fillStyle='#fef3c7';ctx.font='600 '+(11*v.dpr)+'px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(lbl,v.X(cx),v.Y(cy));});
-  ctx.textAlign='left';ctx.textBaseline='alphabetic';
-  if(scene.fov)poly(v,scene.fov,null,'rgba(86,180,233,.78)',1.6*v.dpr);
-  if(scene.cam){const c=scene.cam.xy,dir=((scene.cam.dir??0)*Math.PI)/180,hf=(((scene.cam.fov??75)*Math.PI)/180)/2;
-    if(hf<Math.PI-0.02){const r=1.4;ctx.strokeStyle='rgba(86,180,233,.75)';ctx.lineWidth=1.5*v.dpr;ctx.beginPath();
-      ctx.moveTo(v.X(c[0]+r*Math.cos(dir-hf)),v.Y(c[1]+r*Math.sin(dir-hf)));ctx.lineTo(v.X(c[0]),v.Y(c[1]));ctx.lineTo(v.X(c[0]+r*Math.cos(dir+hf)),v.Y(c[1]+r*Math.sin(dir+hf)));ctx.stroke();}
-    ctx.fillStyle='#93c5fd';ctx.beginPath();ctx.arc(v.X(c[0]),v.Y(c[1]),7*v.dpr,0,7);ctx.fill();
-    ctx.fillStyle='#93c5fd';ctx.font=(12*v.dpr)+'px sans-serif';ctx.fillText(`Camera (${(scene.cam.h||1.8).toFixed(1)}m)`,v.X(c[0])+10*v.dpr,v.Y(c[1])-8*v.dpr);}
-  ctx.fillStyle='#94a3b8';ctx.font=(11.5*v.dpr)+'px sans-serif';ctx.textAlign='right';ctx.fillText(`Area ${v.w.toFixed(1)} x ${v.h.toFixed(1)} m`,cv.width-10*v.dpr,cv.height-8*v.dpr);ctx.textAlign='left';
-  if(!last)return;const lv=last.decision?last.decision.level:0,col=COL[lv];
-  if(last.path&&last.path.length>1){ctx.beginPath();last.path.forEach((p,i)=>i?ctx.lineTo(v.X(p[0]),v.Y(p[1])):ctx.moveTo(v.X(p[0]),v.Y(p[1])));
-    ctx.strokeStyle=col;ctx.lineWidth=5*v.dpr;ctx.stroke();}
-  (last.persons||[]).forEach(p=>{if(!p.xy)return;ctx.fillStyle='#56b4e9';ctx.beginPath();ctx.arc(v.X(p.xy[0]),v.Y(p.xy[1]),8.5*v.dpr,0,7);ctx.fill();
-    ctx.strokeStyle='#ffffff';ctx.lineWidth=2*v.dpr;ctx.stroke();
-    ctx.fillStyle='#ffffff';ctx.font='700 '+(12*v.dpr)+'px sans-serif';ctx.fillText('P'+p.id,v.X(p.xy[0])+11*v.dpr,v.Y(p.xy[1])+4*v.dpr);});
-  if(last.vehicle){const q=last.vehicle,x=v.X(q.xy[0]),y=v.Y(q.xy[1]);ctx.save();ctx.translate(x,y);ctx.rotate(-q.heading);
-    ctx.fillStyle=q.tracked?col:'#64748b';ctx.fillRect(-12*v.dpr,-9*v.dpr,24*v.dpr,18*v.dpr);
-    ctx.strokeStyle='#ffffff';ctx.lineWidth=1.5*v.dpr;ctx.strokeRect(-12*v.dpr,-9*v.dpr,24*v.dpr,18*v.dpr);
-    ctx.fillStyle='#ffffff';ctx.beginPath();ctx.moveTo(18*v.dpr,0);ctx.lineTo(8*v.dpr,-7*v.dpr);ctx.lineTo(8*v.dpr,7*v.dpr);ctx.fill();ctx.restore();}}
-const cadrep=document.getElementById('cadrep'),cadinfo=document.getElementById('cadinfo');
-function showRep(rep,title){oracoloReportInto(cadrep,rep,title);cadrep.style.display='block';}
-cadrep.onclick=()=>{cadrep.style.display='none';};
-cadinfo.onclick=()=>{if(scene&&scene.cad){cadrep.style.display=cadrep.style.display==='block'?'none':'block';}};
-const pickDxf=()=>oracoloPickDxf(document.getElementById('dxffile'),rep=>{showRep(rep);if(rep.ok)loadScene();});
-document.getElementById('dxfbtn').onclick=pickDxf;document.getElementById('dxfbtn2').onclick=pickDxf;
-oracoloSamples(document.getElementById('samplesel'),rep=>{showRep(rep);if(rep.ok)loadScene();});
-function updCad(){const c=scene&&scene.cad;
-  if(!c){cadinfo.textContent=scene&&scene.no_scene?'nessuna':'--';return;}
-  const st=c.stats||{},n=(c.warnings||[]).length;
-  cadinfo.textContent=`${(st.size_m||[]).join('×')} m · ${st.occluders??'?'} ostacoli`+(n?` · ⚠ ${n} avvisi`:'');
-  oracoloReportInto(cadrep,c);}
-async function loadScene(){try{const r=await fetch('/scene');scene=await r.json();updCad();document.getElementById('cam').textContent=scene.camera_url||'';
-  document.getElementById('qru').textContent=scene.camera_url||'';
-  document.getElementById('nocal').style.display=scene.calibrated?'none':'block';draw();}catch(e){}}
-async function poll(){try{const r=await fetch('/state?_='+Date.now(),{cache:'no-store'});last=await r.json();lastPollOk=Date.now();
-  if((last.version!==undefined&&last.version!==ver)||(scene&&scene.no_scene&&!last.no_scene)){ver=last.version;loadScene();if(last.stale&&feedMode==='snap')setFeed('snap');}
-  document.getElementById('choose').style.display=last.no_scene?'flex':'none';
-  if(qrManual===null)qrcard.style.display=(!last.no_scene&&(last.age===null||last.age===undefined))?'block':'none';
-  if(last.stale){vstat.style.display='block';vstat.textContent='[PAUSA FLUSSO] Ultimo frame congelato - riapri /camera sulla camera o premi "QR Camera"';
-    alarm.style.display='block';
-    if((!vid.naturalWidth||vid.naturalWidth<=1||feedMode==='snap')&&Date.now()-lastSnapAt>2000)setFeed('snap');}
-  else{vstat.style.display='none';alarm.style.display='none';if(last.age!==null&&last.age!==undefined&&last.age<1.5&&(feedMode!=='mjpg'||!vid.naturalWidth||vid.naturalWidth<=1)&&Date.now()-feedSince>2000)setFeed('mjpg');}
-  const d=last.decision,bar=document.getElementById('bar');
-  if(d){bar.style.background=COL[d.level];document.getElementById('lvl').textContent=NAME[d.level];setActiveStep(d.level);
-    document.getElementById('lim').textContent=d.limit.toFixed(2)+' m/s ('+(d.limit*3.6).toFixed(1)+' km/h)';document.getElementById('cause').textContent=d.cause_it;}
-  else{bar.style.background='#334155';document.getElementById('lvl').textContent=last.calibrated?'MULETTO NON RILEVATO':'NON CALIBRATO';setActiveStep(-1);
-    document.getElementById('lim').textContent='-- m/s';document.getElementById('cause').textContent=last.calibrated?'Marker ArUco non visibile nell\'inquadratura':'Esegui la calibrazione camera';}
-  const al=last.align,ab=document.getElementById('alignbar'),alst=document.getElementById('alst');
-  if(al&&(al.status==='NON_COINCIDE'||al.status==='DEGRADATO')){ab.style.display='block';ab.className=al.status==='NON_COINCIDE'?'bad':'warn';
-    ab.textContent=(al.status==='DEGRADATO'?'Allineamento degradato — ':'')+(al.message||'');}else ab.style.display='none';
-  alst.textContent=!al?'--':al.status==='NON_VERIFICATO'?'non verificato':al.status==='SENZA_CALIBRAZIONE'?`ancore ${al.n_seen}/${al.n_anchors}`:
-    al.status+(al.rms_m!=null?` (${(al.rms_m*100).toFixed(1)} cm)`:'');
-  document.getElementById('fps').textContent=last.fps??'--';document.getElementById('lat').textContent=last.latency!==undefined?Math.round(last.latency*1000)+' ms':'--';
-  document.getElementById('np').textContent=(last.persons||[]).length;document.getElementById('vio').textContent=last.violations??0;
-  document.getElementById('vs').textContent=last.vehicle?last.vehicle.speed.toFixed(2)+' m/s ('+(last.vehicle.speed*3.6).toFixed(1)+' km/h)':'--';schedDraw();}
-  catch(e){if(Date.now()-lastPollOk>1200){document.getElementById('bar').style.background=COL[3];document.getElementById('lvl').textContent=NAME[3];setActiveStep(3);
-    document.getElementById('lim').textContent='0.00 m/s (0.0 km/h)';document.getElementById('cause').textContent='Connessione server interrotta - arresto fail-safe';alarm.style.display='block';}}}
-window.addEventListener('resize',schedDraw);loadScene();
-// polling sequenziale: la richiesta successiva parte solo a fine della precedente (niente accumulo se il server e' lento)
-(async function pollLoop(){const t0=performance.now();try{await poll();}catch(e){}setTimeout(pollLoop,Math.max(0,120-(performance.now()-t0)));})();
-</script></body></html>
+<script src="/panel.js"></script>
+</body></html>

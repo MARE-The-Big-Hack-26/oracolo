@@ -1,6 +1,6 @@
 <!doctype html><html lang="it"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Oracolo - Calibrazione Camera</title><style>
+<title>ClearCorner - Calibrazione Camera</title><style>
 *{box-sizing:border-box}
 ::selection{background:#1d4ed8;color:#ffffff}
 body{margin:0;background:#0b0e14;color:#f1f5f9;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;font-variant-numeric:tabular-nums;-webkit-font-smoothing:antialiased}
@@ -52,7 +52,7 @@ canvas{width:100%;display:block;cursor:crosshair;background:#07090e;border-radiu
 @media (max-width:960px){#cols{flex-direction:column}}
 </style></head><body>
 <header>
-  <span class="brand">ORACOLO // CALIBRAZIONE</span>
+  <span class="brand">CLEARCORNER // CALIBRAZIONE</span>
   <b>Allineamento Camera-CAD 3D</b>
   <span id="step">Passo 1: clicca uno spigolo sul fotogramma video...</span>
   <div class="nav">
@@ -82,7 +82,7 @@ canvas{width:100%;display:block;cursor:crosshair;background:#07090e;border-radiu
         <button id="reset" type="button">Ricomincia</button>
       </div>
     </div>
-    <div style="font-size:12px;color:#cbd5e1">Clicca gli spigoli sul video, trascina i cerchi per rifinire, o usa le frecce (Shift+frecce = 5px).</div>
+    <div style="font-size:12px;color:#cbd5e1">Clicca gli spigoli sul video, oppure trascina direttamente i punti o gli spigoli CAD proiettati (Alt per ignorare gli spigoli, frecce / Shift+frecce per rifinire).</div>
     <canvas id="img"></canvas>
   </div>
   <div class="box">
@@ -111,6 +111,7 @@ canvas{width:100%;display:block;cursor:crosshair;background:#07090e;border-radiu
   <div id="ptslist"><span style="font-size:12px;color:#94a3b8">Nessun punto selezionato.</span></div>
 </div>
 <div class="hint">Consiglio per allineamento perfetto: aggiungi 6-8 punti ben distribuiti (sia a terra Z=0 sia sulle cime visibili di letto, scrivania, pianoforte o armadio). Con punti 3D la posizione della camera e la distorsione lente vengono stimate automaticamente.</div>
+<script src="/cad_drag.js"></script>
 <script src="/calibrate.js"></script>
 <script src="/anchors.js"></script>
 </body></html>

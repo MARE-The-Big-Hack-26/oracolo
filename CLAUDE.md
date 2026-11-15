@@ -2,7 +2,7 @@
 
 **Team:** 3 "jolly" (ruoli: M Motore, V Visione/modellino, E Esperienza). Hackathon: The Big Hack 2026, Challenge 03 FieldVision (Mare Group). **Deadline: domenica 15/11/2026 ore 12:00 CET** (puntare alle 11:15). Hardware: 3 MacBook Air 15 + 3 iPhone 15 Pro (camera fissa = iPhone su treppiede; il muletto NON ha display: segnale = solo comando; muletto simulato = sedia con marker). Lingua: italiano. **Dobbiamo vincere: priorità a demo funzionante, video chiaro, numeri onesti.**
 
-**Progetto: Oracolo** — rilevazione dei punti ciechi per macchine industriali: una camera segnala 4 livelli di pericolo (0 NORMALE, 1 ATTENZIONE, 2 RALLENTA, 3 FERMA) per possibili collisioni pedone–macchina e invia un comando che rallenta o ferma. Principio: *ignoto ≠ libero*.
+**Progetto: ClearCorner** — rilevazione dei punti ciechi per macchine industriali: una camera segnala 4 livelli di pericolo (0 NORMALE, 1 ATTENZIONE, 2 RALLENTA, 3 FERMA) per possibili collisioni pedone–macchina e invia un comando che rallenta o ferma. Principio: *ignoto ≠ libero*.
 
 **Workflow del progetto:** si importa il CAD del magazzino (DXF); camere FISSE vedono carrelli, persone e zone d'ombra; il carrello ha un ricevitore che riceve il comando (limite di velocità + livello) e rallenta/ferma. In prototipo il Mac invia i comandi a un iPhone (Safari) che fa da ricevitore.
 

@@ -116,13 +116,19 @@ class MarkerDetector:
         self.worker_height = worker_height
         self.tag = tag  # cartello a disegno (non ArUco) del lavoratore
         self.workers = []  # Det("person") dei marker lavoratore dell'ultimo frame
-        self._det = cv2.aruco.ArucoDetector(d, cv2.aruco.DetectorParameters())
+        params = cv2.aruco.DetectorParameters()
+        params.cornerRefinementMethod = cv2.aruco.CORNER_REFINE_SUBPIX
+        params.cornerRefinementWinSize = 5
+        params.cornerRefinementMaxIterations = 30
+        params.detectInvertedMarker = False
+        self._det = cv2.aruco.ArucoDetector(d, params)
         self.marker_id = marker_id
         self.height = height
         self.seen = {}  # id -> angoli 4x2 (pixel) di TUTTI i marker dell'ultimo frame: le ancore a terra usano questi
 
-    def detect(self, frame) -> list:
-        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY) if frame.ndim == 3 else frame
+    def detect(self, frame, gray=None) -> list:
+        if gray is None:
+            gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY) if frame.ndim == 3 else frame
         corners, ids, _ = self._det.detectMarkers(gray)
         out = []
         self.seen = {} if ids is None else {int(i): c[0].astype(float) for c, i in zip(corners, ids.flatten())}
@@ -220,9 +226,17 @@ class YoloPersonDetector:
         self.model = YOLO(weights)
         self.threshold = threshold
         self.device = device or _best_device()
+        # Warmup per evitare il blocco sul primo frame live (compilazione grafi MPS/CUDA)
+        dummy = np.zeros((512, 512, 3), dtype=np.uint8)
+        self.model.predict(dummy, classes=[0], conf=self.threshold, iou=0.5, imgsz=512, device=self.device, verbose=False)
 
     def detect(self, frame) -> list:
-        res = self.model.predict(frame, classes=[0], conf=self.threshold, imgsz=512, device=self.device, verbose=False)[0]
+        import torch  # noqa: PLC0415
+
+        with torch.inference_mode():
+            res = self.model.predict(
+                frame, classes=[0], conf=self.threshold, iou=0.5, imgsz=512, device=self.device, verbose=False
+            )[0]
         if res.boxes is None or len(res.boxes) == 0:
             return []
         H = frame.shape[0]
@@ -238,7 +252,7 @@ class YoloPersonDetector:
             truncated = y2 >= H - 3
             if kpts is not None and kpts.ndim == 3 and kpts.shape[1] >= 17:
                 ankles = [(float(kx), float(ky)) for kx, ky, kc in (kpts[i, 15], kpts[i, 16])
-                          if float(kc) >= 0.35 and float(kx) > 0 and float(ky) > 0]
+                          if float(kc) >= 0.28 and float(kx) > 0 and float(ky) > 0]
                 if ankles:
                     foot = (float(np.mean([a[0] for a in ankles])), float(np.max([a[1] for a in ankles])))
                     truncated = foot[1] >= H - 3

@@ -1,0 +1,66 @@
+<!doctype html><html lang="it"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>ClearCorner - Sensore Muletto</title><style>
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:#07090e;color:#ffffff;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;font-variant-numeric:tabular-nums;-webkit-font-smoothing:antialiased;overflow:hidden}
+#app{height:100%;display:flex;flex-direction:column;background:#1e293b;transition:background .15s ease;padding:env(safe-area-inset-top,10px) 14px env(safe-area-inset-bottom,12px)}
+#app.lv0{background:#007a5a}#app.lv1{background:#b46900}#app.lv2{background:#b84a00}#app.lv3{background:#991b1b}
+@keyframes alertPulse{0%,100%{box-shadow:inset 0 0 0 0 rgba(255,255,255,0)}50%{box-shadow:inset 0 0 0 6px rgba(255,255,255,.75)}}
+#app.pulse{animation:alertPulse .45s ease-in-out 2}
+.top{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 0;flex-wrap:wrap}
+.brand{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;padding:4px 8px;border-radius:4px;background:rgba(0,0,0,.35);border:1px solid rgba(255,255,255,.28)}
+.pills{display:flex;align-items:center;gap:6px}
+.pill{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px;font-weight:700;padding:4px 8px;border-radius:999px;background:rgba(0,0,0,.35);border:1px solid rgba(255,255,255,.28);display:inline-flex;align-items:center;gap:5px}
+.dot{width:8px;height:8px;border-radius:50%;background:#94a3b8}
+.dot.ok{background:#4ade80;box-shadow:0 0 8px #4ade80}
+.dot.bad{background:#f87171;box-shadow:0 0 8px #f87171}
+#audiobtn{color:#ffffff;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px;font-weight:700;padding:5px 10px;border-radius:6px;background:rgba(0,0,0,.45);border:1px solid rgba(255,255,255,.45);cursor:pointer}
+#audiobtn.on{background:#0f172a;border-color:#38bdf8;color:#38bdf8}
+#alignwarn{display:none;background:rgba(0,0,0,.55);border:1px solid #fbbf24;color:#fef3c7;border-radius:8px;padding:7px 10px;font-size:12px;font-weight:700;text-align:center;margin-bottom:6px}
+.core{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;min-height:0;padding:6px 0}
+.badge{display:inline-flex;align-items:center;gap:10px;padding:6px 14px;border-radius:999px;background:rgba(0,0,0,.28);border:1px solid rgba(255,255,255,.32);margin-bottom:10px}
+#sym{font-size:22px;line-height:1}
+#lvl{font-size:20px;font-weight:800;letter-spacing:.04em;text-transform:uppercase}
+#spd{font-size:clamp(42px,13vw,72px);font-weight:900;line-height:1.05;letter-spacing:-.02em}
+#spdkmh{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:16px;font-weight:700;opacity:.92;margin-top:4px}
+#cause{font-size:clamp(16px,4.6vw,22px);font-weight:700;margin-top:12px;padding:8px 14px;border-radius:8px;background:rgba(0,0,0,.26);max-width:440px}
+.telem{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin:8px 0}
+.tcell{background:rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.2);border-radius:8px;padding:6px 8px;text-align:center}
+.tcell .k{display:block;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:10px;opacity:.8;text-transform:uppercase}
+.tcell b{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px}
+.logbox{background:rgba(7,9,14,.62);border:1px solid rgba(255,255,255,.22);border-radius:10px;padding:8px 10px;height:132px;display:flex;flex-direction:column}
+.loghd{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;opacity:.82;margin-bottom:5px;display:flex;justify-content:space-between}
+#log{flex:1;overflow-y:auto;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11.5px;line-height:1.45;display:flex;flex-direction:column;gap:3px}
+.lrow{display:flex;gap:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lrow .ts{opacity:.72;flex-shrink:0}
+.lrow .tag{font-weight:800;flex-shrink:0}
+</style></head><body>
+<div id="app">
+  <div class="top">
+    <span class="brand">CLEARCORNER // SENSORE MULETTO</span>
+    <div class="pills">
+      <span class="pill"><i class="dot" id="dot"></i><span id="linktxt">IN ATTESA</span></span>
+      <span class="pill" id="agepill">-- ms</span>
+      <button id="audiobtn" type="button">AUDIO OFF</button>
+    </div>
+  </div>
+  <div id="alignwarn"></div>
+  <div class="core">
+    <div class="badge"><span id="sym">●</span><span id="lvl">IN ATTESA</span></div>
+    <div id="spd">-- m/s</div>
+    <div id="spdkmh">LIMITE VELOCITÀ COMANDATO</div>
+    <div id="cause">In attesa di comandi dal nodo centrale...</div>
+  </div>
+  <div class="telem">
+    <div class="tcell"><span class="k">Vel. Attuale</span><b id="vcur">--</b></div>
+    <div class="tcell"><span class="k">Persone</span><b id="np">0</b></div>
+    <div class="tcell"><span class="k">Allineam.</span><b id="al">--</b></div>
+    <div class="tcell"><span class="k">Pacchetti RX</span><b id="rx">0</b></div>
+  </div>
+  <div class="logbox">
+    <div class="loghd"><span>Log Comandi &amp; Allarmi</span><span id="fps">-- fps</span></div>
+    <div id="log"></div>
+  </div>
+</div>
+<script src="/cab.js"></script>
+</body></html>

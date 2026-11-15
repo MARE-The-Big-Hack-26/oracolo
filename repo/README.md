@@ -1,11 +1,11 @@
-# Oracolo — rilevazione dei punti ciechi per macchine industriali
+# ClearCorner — rilevazione dei punti ciechi per macchine industriali
 
 > Prototipo da hackathon (The Big Hack 2026, Challenge 03 FieldVision). NON è un sistema di sicurezza certificato.
 
 ## Come funziona (workflow)
 1. **Si importa il CAD del magazzino** (DXF): perimetro e ostacoli (scaffali, pilastri, carichi) con la loro altezza (`oracolo/cad.py`).
 2. **Una o più camere fisse** (posizione e quota note) vedono carrelli, persone e — calcolate dalla geometria — le **zone d'ombra** (punti ciechi).
-3. **Oracolo** tratta l'ignoto come potenzialmente occupato, ricorda le persone sparite dietro un ostacolo e calcola la velocità massima con cui il carrello può ancora fermarsi in tempo → **4 livelli**: NORMALE, ATTENZIONE, RALLENTA, FERMA.
+3. **ClearCorner** tratta l'ignoto come potenzialmente occupato, ricorda le persone sparite dietro un ostacolo e calcola la velocità massima con cui il carrello può ancora fermarsi in tempo → **4 livelli**: NORMALE, ATTENZIONE, RALLENTA, FERMA.
 4. Il **comando** (limite di velocità, livello, causa, scadenza) arriva al **sensore/ricevitore sul carrello** che rallenta o ferma. Se i comandi smettono di arrivare, il carrello si ferma da solo (fail-safe).
 5. In prototipo il carrello è virtuale e il ricevitore è un **iPhone** (Safari) che riceve i comandi dal **Mac**.
 
@@ -58,7 +58,7 @@ Collisione = contatto con il mezzo **in moto**; lo sfioramento con il mezzo già
 | 3 camere | 79% | reactive | 0/30 | 1 | 16.8 s |
 | 3 camere | 79% | oracolo | 0/30 | 1 | 19.7 s |
 
-**Lettura onesta:** dove la camera vede poco (44% dell'area), il sistema che reagisce solo a ciò che vede collide 7 volte su 30 e Oracolo 0, ma il carrello deve strisciare (40,8 s). Con camere sugli incroci (73%) Oracolo resta a 0 collisioni con un costo di 19,8 s contro 13,8 senza sistema: **la copertura delle camere decide il prezzo della sicurezza**, e `coverage()` dice dove metterle. Con buona copertura anche il sistema solo-reattivo evita le collisioni in questo scenario: il vantaggio di Oracolo sta nei punti dove la camera non vede.
+**Lettura onesta:** dove la camera vede poco (44% dell'area), il sistema che reagisce solo a ciò che vede collide 7 volte su 30 e ClearCorner 0, ma il carrello deve strisciare (40,8 s). Con camere sugli incroci (73%) ClearCorner resta a 0 collisioni con un costo di 19,8 s contro 13,8 senza sistema: **la copertura delle camere decide il prezzo della sicurezza**, e `coverage()` dice dove metterle. Con buona copertura anche il sistema solo-reattivo evita le collisioni in questo scenario: il vantaggio di ClearCorner sta nei punti dove la camera non vede.
 
 ## Struttura
 - `oracolo/cad.py` import DXF → scena · `oracolo/warehouse.py` scenario magazzino + copertura camere

@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import math
+import re
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -111,6 +112,37 @@ class Calibration:
         if self.K is not None and abs(self.k1) > 1e-7:
             uv = distort_norm_pts(uv, self.K, self.k1)
         return (float(uv[0, 0]), float(uv[0, 1]))
+
+    def project_visible(self, x: float, y: float, z: float = 0.0) -> tuple[float, float] | None:
+        """Proietta un punto 3D se davanti alla camera e vicino al frame."""
+        if self.K is not None and self.rvec is not None and self.tvec is not None:
+            R, _ = cv2.Rodrigues(self.rvec)
+            z_cam = float((R @ np.array([float(x), float(y), float(z)], dtype=np.float64) + self.tvec.ravel())[2])
+            if z_cam <= 0.15:
+                return None
+        else:
+            px, py = float(x), float(y)
+            if z > 0.0 and self.cam_h > 0.2:
+                zz = min(float(z), self.cam_h * 0.85)
+                s = self.cam_h / (self.cam_h - zz)
+                cx, cy = self.cam_xy
+                px, py = cx + (px - cx) * s, cy + (py - cy) * s
+            Hinv = np.linalg.inv(self.H)
+            if self.world_pts:
+                ref = np.mean(np.asarray(self.world_pts, dtype=np.float64)[:, :2], axis=0)
+                w_ref = float((Hinv @ np.array([ref[0], ref[1], 1.0]))[2])
+                if abs(w_ref) > 1e-12:
+                    Hinv = Hinv / w_ref
+            p = Hinv @ np.array([px, py, 1.0])
+            if p[2] <= 0.05:
+                return None
+        u, v = self.to_image(x, y, z)
+        w, h = self.image_size
+        if not (math.isfinite(u) and math.isfinite(v)):
+            return None
+        if -80.0 <= u <= w + 80.0 and -80.0 <= v <= h + 80.0:
+            return (round(u, 1), round(v, 1))
+        return None
 
     def fov_deg(self) -> float | None:
         if self.K is None or self.K[0, 0] <= 0:
@@ -218,3 +250,29 @@ class Calibration:
     @classmethod
     def load(cls, path) -> "Calibration":
         return cls.from_dict(json.loads(Path(path).read_text()))
+
+
+def overlay_vertices(calib: Calibration, scene) -> list[dict]:
+    """Vertici 3D del CAD proiettati sul frame per il drag diretto in /calibrate."""
+    if calib is None or scene is None:
+        return []
+    raw = [(float(p[0]), float(p[1]), 0.0, "Muro (terra)") for p in list(scene.bounds.exterior.coords)[:-1]]
+    for o in getattr(scene, "occluders", []):
+        if o.poly.geom_type != "Polygon":
+            continue
+        nm = re.sub(r"(#\d+|_H[\d.,]+)$", "", o.name or "", flags=re.I).lower() or "ostacolo"
+        pts = list(o.poly.exterior.coords)[:-1]
+        for p in pts:
+            raw.append((float(p[0]), float(p[1]), 0.0, f"{nm} (terra)"))
+            if o.height > 0.05:
+                raw.append((float(p[0]), float(p[1]), round(float(o.height), 3), f"{nm} (cima {o.height:.2f}m)"))
+    seen, out = set(), []
+    for x, y, z, label in raw:
+        key = (round(x, 3), round(y, 3), round(z, 3))
+        if key in seen:
+            continue
+        seen.add(key)
+        uv = calib.project_visible(x, y, z)
+        if uv is not None:
+            out.append({"u": uv[0], "v": uv[1], "x": key[0], "y": key[1], "z": key[2], "label": label})
+    return out
