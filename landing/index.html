@@ -75,15 +75,16 @@
           <div class="cli-head">
             <div class="os-tabs" role="tablist">
               <button class="os-tab active" data-os="unix" type="button">macOS / Linux</button>
-              <button class="os-tab" data-os="windows" type="button">Windows (PowerShell)</button>
+              <button class="os-tab" data-os="zip" type="button">From .zip</button>
+              <button class="os-tab" data-os="windows" type="button">Windows</button>
             </div>
             <button id="copy-cmd" class="copy-btn" type="button">Copy</button>
           </div>
           <pre class="cli-code"><code id="cli-cmd">git clone https://github.com/MARE-The-Big-Hack-26/oracolo.git && cd oracolo/repo && python3 -m pip install -r requirements.txt && PYTHONPATH=. python3 scripts/run_live.py --loop</code></pre>
           <ul class="cli-steps">
-            <li>Starts the local demo server and prints a URL (e.g. <code>http://&lt;your-ip&gt;:8000</code>).</li>
-            <li>Open that URL in any browser to see live speed limits and safety levels (<code>L0–L3</code>).</li>
-            <li><b>Ready when:</b> the terminal prints <code>Cabina pronta</code> and the page updates in real time.</li>
+            <li><b>1. Run the command</b> (after unzipping, open Terminal in <code>oracolo-main/repo</code> or use the <b>From .zip</b> tab).</li>
+            <li><b>2. Open</b> <code>http://localhost:8000</code> in your browser to see the live forklift display and speed limits (<code>L0–L3</code>).</li>
+            <li><b>3. Want the full camera + 3D map panel?</b> Install <code>pip install -r requirements-vision.txt</code>, run <code>PYTHONPATH=. python3 scripts/run_camera.py --source cam:0 --http --no-tunnel --dxf scenarios/stanza.dxf</code>, and open <code>http://localhost:8443</code>.</li>
           </ul>
         </div>
       </div>
