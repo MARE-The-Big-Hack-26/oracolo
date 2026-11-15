@@ -373,3 +373,24 @@ def test_editor_dopo_avvio_vuoto_sblocca_la_planimetria(tmp_path):
     finally:
         app.running = False
         httpd.shutdown()
+
+
+def test_planimetrie_di_prova_selezionabili(tmp_path):
+    app, httpd, base = _start_empty(tmp_path)
+    try:
+        elenco = json.loads(_req(base + "/samples").read())
+        assert {s["name"] for s in elenco} == {"aula", "magazzino"}
+        for nome, n_ost, dim in (("aula", 4, [9.88, 9.0]), ("magazzino", 12, [24.0, 14.0])):
+            req = urllib.request.Request(base + "/sample", data=json.dumps({"name": nome}).encode(), method="POST")
+            rep = json.loads(urllib.request.urlopen(req, timeout=5).read())
+            assert rep["ok"] and rep["stats"]["occluders"] == n_ost and list(rep["stats"]["size_m"]) == dim
+            assert json.loads(_req(base + "/scene").read())["no_scene"] is False
+        # nome non in elenco (anche un percorso) -> rifiutato, nessun file letto
+        for nome in ("../../etc/passwd", "boh", ""):
+            req = urllib.request.Request(base + "/sample", data=json.dumps({"name": nome}).encode(), method="POST")
+            with pytest.raises(urllib.error.HTTPError) as e:
+                urllib.request.urlopen(req, timeout=5)
+            assert e.value.code == 400
+    finally:
+        app.running = False
+        httpd.shutdown()

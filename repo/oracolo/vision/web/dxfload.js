@@ -24,3 +24,19 @@ function oracoloPickDxf(input, onDone) {
   input.onchange = async () => { const f = input.files[0]; input.value = ''; if (f) onDone(await oracoloLoadDxf(f), f); };
   input.click();
 }
+
+// «Planimetria di prova»: elenco da GET /samples, caricamento con POST /sample. I titoli vanno SOLO in textContent.
+async function oracoloSamples(select, onDone) {
+  try {
+    const list = await (await fetch('/samples')).json();
+    for (const s of list) { const o = document.createElement('option'); o.value = s.name; o.textContent = s.title; select.appendChild(o); }
+  } catch (e) { select.style.display = 'none'; return; }
+  select.onchange = async () => {
+    const name = select.value; select.value = '';
+    if (!name) return;
+    try {
+      const r = await fetch('/sample', { method: 'POST', body: JSON.stringify({ name }) });
+      onDone(await r.json());
+    } catch (e) { onDone({ ok: false, errors: ['Errore di rete: ' + e], warnings: [] }); }
+  };
+}

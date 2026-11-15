@@ -77,7 +77,7 @@ button:focus-visible,a:focus-visible{outline:2px solid #38bdf8;outline-offset:2p
 <input type="file" id="dxffile" accept=".dxf" hidden>
 <div id="choose"><div class="c"><h2>Scegli la planimetria</h2>
 <p>Importa il tuo file DXF (solo DXF) oppure disegna la stanza con l'editor. Non c'è una stanza predefinita.</p>
-<div class="btns"><button id="dxfbtn2" type="button">Carica DXF</button><a href="/room">Disegna planimetria</a></div></div></div>
+<div class="btns"><button id="dxfbtn2" type="button">Carica DXF</button><a href="/room">Disegna planimetria</a><select id="samplesel" title="Planimetria di prova" style="background:#0b1220;color:#e2e8f0;border:1px solid #334155;border-radius:8px;padding:8px 10px;font:inherit"><option value="">Planimetria di prova…</option></select></div></div></div>
 <div id="cadrep"></div><div id="alignbar"></div>
 <div id="main">
   <div id="alarm">AFFIDABILITA PERSA - ARRESTO AUTOMATICO (NESSUN COMANDO VALIDO)</div>
@@ -184,6 +184,7 @@ cadrep.onclick=()=>{cadrep.style.display='none';};
 cadinfo.onclick=()=>{if(scene&&scene.cad){cadrep.style.display=cadrep.style.display==='block'?'none':'block';}};
 const pickDxf=()=>oracoloPickDxf(document.getElementById('dxffile'),rep=>{showRep(rep);if(rep.ok)loadScene();});
 document.getElementById('dxfbtn').onclick=pickDxf;document.getElementById('dxfbtn2').onclick=pickDxf;
+oracoloSamples(document.getElementById('samplesel'),rep=>{showRep(rep);if(rep.ok)loadScene();});
 function updCad(){const c=scene&&scene.cad;
   if(!c){cadinfo.textContent=scene&&scene.no_scene?'nessuna':'--';return;}
   const st=c.stats||{},n=(c.warnings||[]).length;

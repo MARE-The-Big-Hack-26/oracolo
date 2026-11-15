@@ -13,6 +13,12 @@ from .certs import maybe_wrap_tls
 WEB = Path(__file__).parent / "web"
 MAX_DXF_BYTES = 20 * 1024 * 1024
 _PAGES = {"/": "panel.html", "/panel": "panel.html", "/camera": "camera.html", "/calibrate": "calibrate.html", "/room": "room.html"}
+SAMPLES_DIR = Path(__file__).parent / "samples"
+# planimetrie di prova incluse: l'utente le sceglie dal pannello senza avere un DXF. nome -> (file, titolo)
+SAMPLES = {
+    "aula": ("aula_studio_prova.dxf", "Aula 9,9 × 9 m, 4 tavoli (prova)"),
+    "magazzino": ("magazzino_prova.dxf", "Magazzino 24 × 14 m, scaffali e pilastri (prova, file con «sporco» da pulire)"),
+}
 _JS = ("/room.js", "/room_cam.js", "/calibrate.js", "/anchors.js", "/dxfload.js")
 
 
@@ -77,6 +83,9 @@ def make_handler(app, camera_url: str = "", ssl_ctx: ssl.SSLContext | None = Non
                 info["no_scene"] = not app.scene_loaded
                 info["cad"] = app.cad_report
                 return self._send(200, json.dumps(info).encode(), "application/json")
+            if path == "/samples":
+                out = [{"name": k, "title": t} for k, (_, t) in SAMPLES.items()]
+                return self._send(200, json.dumps(out).encode(), "application/json")
             if path == "/anchors":
                 a = app.pipe.anchors
                 out = {"anchors": None if a is None else a.to_dict(), "error": app.anchors_error,
@@ -134,6 +143,18 @@ def make_handler(app, camera_url: str = "", ssl_ctx: ssl.SSLContext | None = Non
                     out = {"ok": False, "errors": [f"File troppo grande (> {MAX_DXF_BYTES // 2**20} MB)."], "warnings": [], "stats": {}}
                     return self._send(413, json.dumps(out).encode(), "application/json")
                 out = app.apply_dxf(body, self.headers.get("X-Filename", ""))
+                return self._send(200 if out["ok"] else 400, json.dumps(out, default=str).encode(), "application/json")
+            if self.path == "/sample":
+                try:
+                    name = json.loads(body or b"{}").get("name", "")
+                except ValueError:
+                    name = ""
+                if name not in SAMPLES:  # solo nomi della lista: nessun percorso arbitrario
+                    return self._send(400, json.dumps({"ok": False, "errors": ["Planimetria di prova sconosciuta."],
+                                                       "warnings": [], "stats": {}}).encode(), "application/json")
+                fname = SAMPLES[name][0]
+                out = app.apply_dxf((SAMPLES_DIR / fname).read_bytes(), fname)
+                out["sample"] = name
                 return self._send(200 if out["ok"] else 400, json.dumps(out, default=str).encode(), "application/json")
             if self.path == "/scene":
                 return self._json_post(app.apply_scene, body)
