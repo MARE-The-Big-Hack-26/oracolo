@@ -31,13 +31,13 @@
     <div class="container hero-content">
       <h1>Stop collisions in the blind spot before they happen.</h1>
       <p class="hero-sub">
-        ClearCorner imports your warehouse CAD (DXF), maps 2.5D camera shadow zones, and caps forklift speed whenever a pedestrian disappears behind a rack.
+        ClearCorner imports your warehouse CAD (DXF), maps camera blind spots behind shelves and racks, and caps forklift speed whenever a pedestrian is out of sight.
       </p>
       <div class="hero-cta">
         <a class="btn-primary" href="https://github.com/MARE-The-Big-Hack-26/oracolo/archive/refs/heads/main.zip">Download Source (.zip)</a>
         <a class="btn-secondary" href="#install">Run in Terminal</a>
       </div>
-      <div class="os-note">macOS · Linux · Windows · Python 3.10+ · Fail-safe TTL Watchdog</div>
+      <div class="os-note">macOS · Linux · Windows · Python 3.9+ · Automatic stop if connection drops</div>
     </div>
     <a class="v2-defiler" href="#demo" aria-label="Scroll to interactive simulator">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M19 12l-7 7-7-7"/></svg>
@@ -65,20 +65,26 @@
           </div>
           <h2>Download or run in one command.</h2>
           <p class="section-lead">
-            Works on macOS, Linux, and Windows. Includes the warehouse simulator, 135-test suite, and live camera &amp; cab receiver.
+            Works on macOS, Linux, and Windows (Python 3.9+). Includes the warehouse simulator, 135-test suite, and browser display for the forklift operator. For live camera tracking, also run <code>pip install -r requirements-vision.txt</code> (requires <code>opencv-python-headless&lt;5</code>).
           </p>
           <a class="btn-primary" href="https://github.com/MARE-The-Big-Hack-26/oracolo/archive/refs/heads/main.zip">Download Source (.zip)</a>
+          <p class="zip-note">Downloaded the .zip? Extract it and open the <code>oracolo-main/repo</code> folder (<code>git clone</code> creates <code>oracolo/repo</code>).</p>
         </div>
 
         <div class="cli-card">
           <div class="cli-head">
             <div class="os-tabs" role="tablist">
               <button class="os-tab active" data-os="unix" type="button">macOS / Linux</button>
-              <button class="os-tab" data-os="windows" type="button">Windows</button>
+              <button class="os-tab" data-os="windows" type="button">Windows (PowerShell)</button>
             </div>
             <button id="copy-cmd" class="copy-btn" type="button">Copy</button>
           </div>
-          <pre class="cli-code"><code id="cli-cmd">git clone https://github.com/MARE-The-Big-Hack-26/oracolo.git && cd oracolo/repo && pip install -r requirements.txt && make live</code></pre>
+          <pre class="cli-code"><code id="cli-cmd">git clone https://github.com/MARE-The-Big-Hack-26/oracolo.git && cd oracolo/repo && python3 -m pip install -r requirements.txt && PYTHONPATH=. python3 scripts/run_live.py --loop</code></pre>
+          <ul class="cli-steps">
+            <li>Starts the local demo server and prints a URL (e.g. <code>http://&lt;your-ip&gt;:8000</code>).</li>
+            <li>Open that URL in any browser to see live speed limits and safety levels (<code>L0–L3</code>).</li>
+            <li><b>Ready when:</b> the terminal prints <code>Cabina pronta</code> and the page updates in real time.</li>
+          </ul>
         </div>
       </div>
     </div>
@@ -95,6 +101,11 @@
     </div>
   </footer>
 
-  <script type="module" src="app.js"></script>
+  <script type="module">
+    import { shapeWaves } from "./waves.js";
+    const wavesEl = document.getElementById("waves");
+    if (wavesEl) shapeWaves(wavesEl);
+  </script>
+  <script defer src="app.js"></script>
 </body>
 </html>

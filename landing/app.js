@@ -1,8 +1,3 @@
-import { shapeWaves } from "./waves.js";
-
-const wavesEl = document.getElementById("waves");
-if (wavesEl) shapeWaves(wavesEl);
-
 document.querySelectorAll(".btn-primary").forEach((el) => {
   el.addEventListener("mousemove", (e) => {
     const r = el.getBoundingClientRect();
@@ -18,8 +13,8 @@ document.querySelectorAll(".btn-primary").forEach((el) => {
 });
 
 const COMMANDS = {
-  unix: "git clone https://github.com/MARE-The-Big-Hack-26/oracolo.git && cd oracolo/repo && pip install -r requirements.txt && make live",
-  windows: "git clone https://github.com/MARE-The-Big-Hack-26/oracolo.git && cd oracolo\\repo && pip install -r requirements.txt && python scripts/run_live.py --loop"
+  unix: "git clone https://github.com/MARE-The-Big-Hack-26/oracolo.git && cd oracolo/repo && python3 -m pip install -r requirements.txt && PYTHONPATH=. python3 scripts/run_live.py --loop",
+  windows: "git clone https://github.com/MARE-The-Big-Hack-26/oracolo.git; cd oracolo\\repo; py -m pip install -r requirements.txt; $env:PYTHONPATH=\".\"; py scripts/run_live.py --loop"
 };
 
 const cmdEl = document.getElementById("cli-cmd");
