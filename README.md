@@ -1,13 +1,13 @@
-# ClearCorner (Oracolo) — rilevazione dei punti ciechi per macchine industriali
+# ClearCorner — rilevazione dei punti ciechi per macchine industriali
 
 > Prototipo da hackathon (The Big Hack 2026 · Challenge 03 FieldVision, Mare Group). **Non è un sistema di sicurezza certificato.**
 
-**Idea in una riga:** una camera fissa e la planimetria (CAD) della zona permettono di calcolare dove la macchina *non vede*; Oracolo tratta l'ignoto come «potenzialmente occupato» (**ignoto ≠ libero**) e calcola a che velocità il carrello può ancora fermarsi in tempo, con 4 livelli di pericolo e un comando **fail-safe**.
+**Idea in una riga:** una camera fissa e la planimetria (CAD) della zona permettono di calcolare dove la macchina *non vede*; ClearCorner tratta l'ignoto come «potenzialmente occupato» (**ignoto ≠ libero**) e calcola a che velocità il carrello può ancora fermarsi in tempo, con 4 livelli di pericolo e un comando **fail-safe**.
 
 ## Come funziona
 1. **Si importa il CAD** (file DXF) oppure si **disegna la planimetria** nell'editor 3D integrato. Chi vuole solo provare sceglie una **planimetria di prova** dal menu (aula o magazzino). Il programma normalizza il file (unità → metri, origine in 0,0, perimetro, ostacoli, altezze) e **segnala cosa ha scartato** (porte, testi, quote, oggetti minuscoli): `oracolo/cad_norm.py`.
 2. **Una camera fissa** (posizione e quota note) vede persone e carrello. Dalla geometria si calcolano le **zone d'ombra** dietro gli ostacoli.
-3. **Oracolo** ricorda le persone sparite dietro un ostacolo, considera libero solo ciò che vede davvero e calcola la **velocità massima** con cui il carrello si ferma in tempo → **4 livelli**.
+3. **ClearCorner** ricorda le persone sparite dietro un ostacolo, considera libero solo ciò che vede davvero e calcola la **velocità massima** con cui il carrello si ferma in tempo → **4 livelli**.
 4. Il **comando** (limite, livello, causa, scadenza) va al ricevitore sul carrello. Se i comandi smettono di arrivare o la camera non coincide più con il CAD, il carrello si ferma da solo.
 5. In prototipo il carrello è virtuale; la camera è un **iPhone** su treppiede e il pannello gira su un **Mac**.
 
@@ -79,7 +79,7 @@ Collisione = contatto con il mezzo **in moto**; lo sfioramento con il mezzo già
 | 3 camere | 79% | reactive | 0/30 | 1 | 16.8 s |
 | 3 camere | 79% | oracolo | 0/30 | 1 | 19.7 s |
 
-**Lettura onesta:** dove la camera vede poco (44% dell'area), il sistema che reagisce solo a ciò che vede collide 7 volte su 30 e Oracolo 0, ma il carrello deve strisciare (40,8 s). Con camere sugli incroci (73%) Oracolo resta a 0 collisioni con un costo di 19,8 s contro 13,8 senza sistema: **la copertura delle camere decide il prezzo della sicurezza**, e `coverage()` dice dove metterle. Con buona copertura anche il sistema solo-reattivo evita le collisioni in questo scenario: il vantaggio di Oracolo sta nei punti dove la camera non vede.
+**Lettura onesta:** dove la camera vede poco (44% dell'area), il sistema che reagisce solo a ciò che vede collide 7 volte su 30 e ClearCorner 0, ma il carrello deve strisciare (40,8 s). Con camere sugli incroci (73%) ClearCorner resta a 0 collisioni con un costo di 19,8 s contro 13,8 senza sistema: **la copertura delle camere decide il prezzo della sicurezza**, e `coverage()` dice dove metterle. Con buona copertura anche il sistema solo-reattivo evita le collisioni in questo scenario: il vantaggio di ClearCorner sta nei punti dove la camera non vede.
 
 ## Struttura del codice
 - `oracolo/cad.py` import DXF → scena · `oracolo/cad_norm.py` normalizzazione del DXF · `oracolo/warehouse.py` scenario magazzino e copertura camere
