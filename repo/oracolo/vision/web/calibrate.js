@@ -1,6 +1,6 @@
 let scene = null, im = new Image(), imgPts = [], worldPts = [], pending = null, cam = [4.5, 1.1], camH = 1.8;
 let camMode = false, resetConfirm = false, resetT = null, overlay = null, calibW = 0, calibSize = [960, 540];
-let dragImg = -1, dragMap = null, toastT = null, selPt = -1, hoverImg = null, hoverVert = null, snapMap = null, ptErrs = [];
+let dragImg = -1, dragMap = null, toastT = null, selPt = -1, hoverImg = null, snapMap = null, ptErrs = [];
 let inflight = false, queuedLive = false, lastLiveAt = 0;
 const CACHE_KEY = 'oracolo_calib_cache', rnd = (v) => Math.round(v * 100) / 100, $ = (id) => document.getElementById(id);
 const ci = $('img'), cm = $('map'), msgEl = $('msg'), toastEl = $('toast'), saveBtn = $('save'), setCamBtn = $('setcam');
@@ -85,7 +85,6 @@ function drawImg() {
       strokePoly(c, o.floor, 'rgba(230,159,0,0.95)', 2.2, sc);
       if (o.top && o.top.length >= 3) strokePoly(c, o.top, 'rgba(86,180,233,0.88)', 1.6, sc);
     });
-    window.OracoloCadDrag?.drawVertices(c, overlay, sc, hoverVert, dragImg >= 0);
   }
   imgPts.forEach((p, i) => {
     const active = i === dragImg || i === selPt;
@@ -160,17 +159,15 @@ function upd() {
 async function saveCamOnly(btn = saveBtn) {
   if (!scene) return;
   saveBtn.textContent = 'Salvataggio in corso...';
-  const c = writeCache({ cam_xy: cam, cam_h: camH }), body = { bounds: scene.bounds, obstacles: (scene.occluders || []).filter((o) => o.coords && o.coords.length >= 3), cam: { xy: cam, h: camH } };
+  writeCache({ cam_xy: cam, cam_h: camH });
+  const body = { bounds: scene.bounds, obstacles: (scene.occluders || []).filter((o) => o.coords && o.coords.length >= 3), cam: { xy: cam, h: camH } };
   try {
     const j = await (await fetch('/scene', { method: 'POST', body: JSON.stringify(body) })).json();
-    let calOk = false;
-    if (c.img && c.world && c.img.length >= 4 && c.img.length === c.world.length) {
-      const sz = im.naturalWidth ? [im.naturalWidth, im.naturalHeight] : (c.image_size || calibSize);
-      const cj = await (await fetch('/calib', { method: 'POST', body: JSON.stringify({ img: c.img, world: c.world, image_size: sz, cam_xy: cam, cam_h: camH, fit_distortion: fitDistEl.checked }) })).json();
-      if (cj.ok) { calOk = true; overlay = cj.overlay || overlay; calibW = sz[0]; if (cj.fov) scene.fov = cj.fov; ptErrs = cj.point_errors_px || []; upd(); }
-    }
-    if (j.ok || calOk) { flashBtn(saveBtn, '[OK] Camera salvata'); if (btn && btn !== saveBtn) flashBtn(btn, '[OK] Camera salvata'); notify(`Posizione camera salvata (${rnd(cam[0])}, ${rnd(cam[1])} m · H ${rnd(camH)} m).`); }
-    else { updLabels(); notify('Errore: ' + j.error, true); }
+    if (j.ok) {
+      if (j.fov) { scene.fov = j.fov; upd(); }
+      flashBtn(saveBtn, '[OK] Camera salvata'); if (btn && btn !== saveBtn) flashBtn(btn, '[OK] Camera salvata');
+      notify(`Posizione camera salvata (${rnd(cam[0])}, ${rnd(cam[1])} m · H ${rnd(camH)} m).`);
+    } else { updLabels(); notify('Errore: ' + j.error, true); }
   } catch (e) { updLabels(); notify('Errore di rete: ' + e, true); }
 }
 async function saveCalib(btn = saveBtn, silent = false) {
@@ -207,30 +204,20 @@ const hitIdx = (pts, px, py, rad) => pts.findIndex((p) => Math.hypot(p[0] - px, 
 ci.addEventListener('pointerdown', (e) => {
   if (!im.naturalWidth) return; const [px, py, sc] = pos(e, ci), hi = hitIdx(imgPts, px, py, 16 * sc);
   if (hi >= 0 && !camMode) { dragImg = hi; selPt = hi; ci.setPointerCapture(e.pointerId); upd(); return; }
-  if (camMode || pending) return;
-  const ovSc = calibW ? ci.width / calibW : 1;
-  const vh = window.OracoloCadDrag?.hitVertex(overlay, px, py, 14 * sc, ovSc, worldPts, e.altKey);
-  if (vh) {
-    if (vh.existingIdx >= 0) { dragImg = vh.existingIdx; imgPts[dragImg] = [px, py]; }
-    else { imgPts.push([px, py]); worldPts.push([vh.vertex.x, vh.vertex.y, vh.vertex.z]); dragImg = imgPts.length - 1; }
-    selPt = dragImg; hoverVert = null; ci.setPointerCapture(e.pointerId); upd(); return;
-  }
-  pending = [px, py]; upd();
+  if (camMode || pending) return; pending = [px, py]; upd();
 });
 ci.addEventListener('pointermove', (e) => {
   if (!im.naturalWidth) return; const [px, py, sc] = pos(e, ci); hoverImg = [px, py];
   if (dragImg >= 0) { imgPts[dragImg] = [px, py]; drawImg(); triggerLiveCalib(); return; }
-  const hi = hitIdx(imgPts, px, py, 16 * sc), ovSc = calibW ? ci.width / calibW : 1;
-  hoverVert = (!camMode && !pending && hi < 0) ? window.OracoloCadDrag?.hitVertex(overlay, px, py, 14 * sc, ovSc, worldPts, e.altKey) : null;
-  ci.style.cursor = (!camMode && (hi >= 0 || hoverVert)) ? 'grab' : 'crosshair'; drawImg();
+  ci.style.cursor = (!camMode && hitIdx(imgPts, px, py, 16 * sc) >= 0) ? 'grab' : 'crosshair'; drawImg();
 });
-ci.addEventListener('pointerleave', () => { hoverImg = null; hoverVert = null; drawImg(); });
+ci.addEventListener('pointerleave', () => { hoverImg = null; drawImg(); });
 ci.addEventListener('pointerup', () => { if (dragImg < 0) return; dragImg = -1; upd(); saveCalib(saveBtn); });
 cm.addEventListener('pointerdown', (e) => {
   if (!scene) return; const v = mview(), [px, py, sc] = pos(e, cm), sn = findSnap(v, px, py, sc, e.altKey);
   const w = sn ? [sn.x, sn.y, sn.z] : [v.ix(px), v.iy(py), 0];
   if (window.OracoloAnchorsPick && window.OracoloAnchorsPick(w[0], w[1])) return;
-  if (camMode) { cam = [rnd(w[0]), rnd(w[1])]; camMode = false; syncCamInputs(); upd(); saveCameraOrCalib(setCamBtn); return; }
+  if (camMode) { cam = [rnd(w[0]), rnd(w[1])]; camMode = false; syncCamInputs(); upd(); saveCamOnly(setCamBtn); return; }
   if (!pending) {
     const rad = 16 * sc;
     if (cam && Math.hypot(v.X(cam[0]) - px, v.Y(cam[1]) - py) <= rad) { dragMap = { kind: 'cam' }; cm.setPointerCapture(e.pointerId); drawMap(); return; }
@@ -252,7 +239,7 @@ cm.addEventListener('pointermove', (e) => {
   const rad = 16 * sc, over = !pending && !camMode && ((cam && Math.hypot(v.X(cam[0]) - px, v.Y(cam[1]) - py) <= rad) || worldPts.some((p) => Math.hypot(v.X(p[0]) - px, v.Y(p[1]) - py) <= rad));
   cm.style.cursor = over ? 'grab' : 'crosshair'; drawMap();
 });
-cm.addEventListener('pointerup', () => { if (!dragMap) return; const isCam = dragMap.kind === 'cam'; dragMap = null; snapMap = null; upd(); if (isCam) saveCameraOrCalib(saveBtn); else saveCalib(saveBtn); });
+cm.addEventListener('pointerup', () => { if (!dragMap) return; const isCam = dragMap.kind === 'cam'; dragMap = null; snapMap = null; upd(); if (isCam) saveCamOnly(saveBtn); else saveCalib(saveBtn); });
 window.addEventListener('keydown', (e) => {
   if (selPt < 0 || selPt >= imgPts.length || ['INPUT', 'SELECT', 'TEXTAREA'].includes(document.activeElement?.tagName)) return;
   const step = e.shiftKey ? 5 : 0.5, d = { ArrowLeft: [-step, 0], ArrowRight: [step, 0], ArrowUp: [0, -step], ArrowDown: [0, step] }[e.key];
@@ -261,7 +248,7 @@ window.addEventListener('keydown', (e) => {
 function onCamField(saveNow) {
   const x = parseFloat(cxEl.value), y = parseFloat(cyEl.value), h = parseFloat(chEl.value);
   if (Number.isFinite(x)) cam[0] = x; if (Number.isFinite(y)) cam[1] = y; if (Number.isFinite(h) && h >= 0.2) camH = h;
-  drawMap(); if (saveNow) saveCameraOrCalib(saveBtn);
+  drawMap(); if (saveNow) saveCamOnly(saveBtn);
 }
 [cxEl, cyEl, chEl].forEach((el) => { el.addEventListener('input', () => onCamField(false)); el.addEventListener('change', () => onCamField(true)); });
 fitDistEl.addEventListener('change', () => { if (imgPts.length >= 4) saveCalib(saveBtn); });
