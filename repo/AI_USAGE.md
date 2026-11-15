@@ -9,4 +9,4 @@
 - Modelli di visione (se usati nella pipeline reale): elencati in THIRD_PARTY.md con licenza.
 - Il motore di decisione (visibilità, zone cieche, limite di velocità) è deterministico e NON usa modelli di AI.
 
-TODO prima della consegna: aggiungere i nomi dei membri che hanno verificato ogni parte.
+Verifica: il team ha letto, eseguito e testato il codice (135 test automatici). Le prove con camera reale sono descritte nel README.

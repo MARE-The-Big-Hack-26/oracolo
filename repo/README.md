@@ -12,7 +12,7 @@
 ## Prova rapida
 ```bash
 pip install -r requirements.txt
-python -m pytest -q                 # 67 test
+python -m pytest -q                 # 135 test
 python -m oracolo.bench --runs 30   # tabella di confronto
 make frames                         # video planimetria + cabina (out/demo.mp4)
 make live                           # server per l'iPhone: apri http://<IP-del-Mac>:8000 in Safari
@@ -67,6 +67,6 @@ Collisione = contatto con il mezzo **in moto**; lo sfioramento con il mezzo già
 - `oracolo/machine.py` comando con TTL, bus con ritardo/perdita, macchina virtuale con watchdog, UDP
 - `oracolo/cab.py` ricevitore "cabina" (server web per l'iPhone, con watchdog nella pagina)
 - `oracolo/sim.py`, `bench.py`, `render.py` simulazione, benchmark, video
-- `tests/` 42 test (fisica verificata anche per forza bruta)
+- `tests/` 135 test (fisica verificata anche per forza bruta)
 
 Dichiarazioni: THIRD_PARTY.md, AI_USAGE.md. Limiti e ipotesi: docs/ nel progetto.
