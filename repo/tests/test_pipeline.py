@@ -149,3 +149,52 @@ def test_marker_ancora_non_e_un_lavoratore(room):
     pipe = LivePipeline(room, _cal(), person_detector=NoPersonDetector())
     st = pipe.process(_frame_con_marker_lavoratore(10, 3.2, 2.4), 0.0)
     assert st["persons"] == []
+
+
+def _frame_con_foglio_lavoratore(x, y, z=1.2, size=0.38, ruota=0):
+    """Il foglio-lavoratore (modello in oracolo/vision/tags) in piedi, rivolto alla camera, centro a quota z."""
+    import numpy as np
+    from oracolo.vision.detectors import TAG_DIR
+    tex = cv2.resize(cv2.imread(str(TAG_DIR / "lavoratore.png"), cv2.IMREAD_GRAYSCALE), (400, 400))
+    tex = cv2.cvtColor(np.rot90(tex, ruota).copy(), cv2.COLOR_GRAY2BGR)
+    img = synth.render_frame(None)
+    img[:] = np.where(img == 90, 170, img)
+    v = np.array([synth.CAM[0] - x, synth.CAM[1] - y, 0.0]); v /= np.linalg.norm(v)
+    r = np.array([-v[1], v[0], 0.0]); up = np.array([0, 0, 1.0]); h = size / 2; c = np.array([x, y, z])
+    dst = synth.project([c - h * r + h * up, c + h * r + h * up, c + h * r - h * up, c - h * r - h * up]).astype(np.float32)
+    M = cv2.getPerspectiveTransform(np.float32([[0, 0], [400, 0], [400, 400], [0, 400]]), dst)
+    w = cv2.warpPerspective(tex, M, (synth.W, synth.H))
+    m = cv2.warpPerspective(np.full((400, 400), 255, np.uint8), M, (synth.W, synth.H))
+    img[m > 0] = w[m > 0]
+    return img
+
+
+@pytest.mark.parametrize("ruota", [0, 1, 2, 3])
+def test_foglio_lavoratore_a_disegno_e_una_persona(room, ruota):
+    from oracolo.vision.detectors import TagMatcher
+    pipe = LivePipeline(room, _cal(), person_detector=NoPersonDetector(),
+                        marker=MarkerDetector(0, worker_height=1.2, tag=TagMatcher(height=1.2)))
+    st = pipe.process(_frame_con_foglio_lavoratore(3.2, 2.4, ruota=ruota), 0.0)
+    assert st["vehicle"] is None
+    assert len(st["persons"]) == 1
+    x, y = st["persons"][0]["xy"]
+    assert math.hypot(x - 3.2, y - 2.4) < 0.25
+
+
+def test_quadrato_nero_qualunque_non_e_un_lavoratore(room):
+    import numpy as np
+    from oracolo.vision.detectors import TagMatcher
+    img = synth.render_frame(None)
+    img[:] = np.where(img == 90, 170, img)
+    img[300:420, 600:720] = 30
+    img[330:350, 630:670] = 230
+    pipe = LivePipeline(room, _cal(), person_detector=NoPersonDetector(),
+                        marker=MarkerDetector(0, tag=TagMatcher()))
+    assert pipe.process(img, 0.0)["persons"] == []
+
+
+def test_ancora_aruco_non_e_il_foglio_lavoratore(room):
+    from oracolo.vision.detectors import TagMatcher
+    pipe = LivePipeline(room, _cal(), person_detector=NoPersonDetector(),
+                        marker=MarkerDetector(0, tag=TagMatcher()))
+    assert pipe.process(synth.render_with_anchors(None), 0.0)["persons"] == []
