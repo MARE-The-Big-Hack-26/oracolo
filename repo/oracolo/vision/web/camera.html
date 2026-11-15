@@ -25,7 +25,8 @@ p{margin:0;color:#cbd5e1;font-size:14px;max-width:360px;line-height:1.5}
 <video id="v" playsinline autoplay muted></video><canvas id="c" hidden></canvas>
 <div id="hud"><span id="s1">STATO: PRONTO</span><span id="s2">0.0 fps</span><span id="s3">--</span></div>
 <script>
-const W = 800, FPS = 20, Q = 0.62;
+const qs = new URLSearchParams(location.search);  // /camera?w=640&q=0.5&fps=8 per collegamenti lenti (4G)
+const W = Math.min(1920, Math.max(320, +qs.get('w') || 800)), FPS = Math.min(30, Math.max(2, +qs.get('fps') || 20)), Q = Math.min(0.95, Math.max(0.3, +qs.get('q') || 0.62));
 let sent = 0, errs = 0, inflight = false, t0 = performance.now();
 const v = document.getElementById('v'), c = document.getElementById('c');
 async function start() {
