@@ -156,15 +156,15 @@ class MarkerDetector:
 class HogPersonDetector:
     """Rilevatore persone di base (HOG + SVM di OpenCV): nessun file da scaricare."""
 
-    def __init__(self, width: int = 640, min_weight: float = 0.6):
+    def __init__(self, width: int = 640, min_weight: float = 0.6, scale: float = 1.1):
         self.hog = cv2.HOGDescriptor()
         self.hog.setSVMDetector(cv2.HOGDescriptor_getDefaultPeopleDetector())
-        self.width, self.min_weight = width, min_weight
+        self.width, self.min_weight, self.scale = width, min_weight, scale  # scale 1.05 e' ~2.4x piu' lento (misurato in sandbox)
 
     def detect(self, frame) -> list:
         s = min(1.0, self.width / frame.shape[1])
         small = cv2.resize(frame, None, fx=s, fy=s) if s < 1.0 else frame
-        rects, weights = self.hog.detectMultiScale(small, winStride=(8, 8), padding=(8, 8), scale=1.05)
+        rects, weights = self.hog.detectMultiScale(small, winStride=(8, 8), padding=(8, 8), scale=self.scale)
         out = []
         if len(rects) == 0:
             return out
