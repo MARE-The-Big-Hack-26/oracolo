@@ -121,6 +121,11 @@ class MarkerDetector:
         params.cornerRefinementWinSize = 5
         params.cornerRefinementMaxIterations = 30
         params.detectInvertedMarker = False
+        # finestre di soglia piu' ampie e marker piccoli ammessi: piu' robusto a sfocatura/distanza (misurato su sintetico)
+        params.adaptiveThreshWinSizeMax = 53
+        params.adaptiveThreshWinSizeStep = 10
+        params.minMarkerPerimeterRate = 0.02
+        params.polygonalApproxAccuracyRate = 0.05
         self._det = cv2.aruco.ArucoDetector(d, params)
         self.marker_id = marker_id
         self.height = height
