@@ -25,7 +25,7 @@ git clone https://github.com/MARE-The-Big-Hack-26/oracolo
 cd oracolo/repo
 python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
-make test      # 131 test
+make test      # 134 test
 make demo      # tabella di confronto + caso passo-passo
 make frames    # immagini per il video (out/frames)
 ```
@@ -88,7 +88,7 @@ Collisione = contatto con il mezzo **in moto**; lo sfioramento con il mezzo già
 - `oracolo/machine.py` comando con scadenza, bus con ritardo/perdita, macchina virtuale con watchdog, UDP
 - `oracolo/cab.py` ricevitore «cabina» (pagina web per l'iPhone, con watchdog)
 - `oracolo/vision/` pipeline reale: calibrazione, marker e cartello-lavoratore, allineamento CAD-video, rilevatori, tracking, server e pannello web, planimetrie di prova (`samples/`)
-- `oracolo/sim.py`, `bench.py`, `render.py` simulazione, benchmark, video · `tests/` 131 test (la fisica è verificata anche per forza bruta)
+- `oracolo/sim.py`, `bench.py`, `render.py` simulazione, benchmark, video · `tests/` 134 test (la fisica è verificata anche per forza bruta)
 
 ## Limiti dichiarati
 - **Non è un sistema di sicurezza certificato**: prototipo di ricerca, non va usato per proteggere persone.
