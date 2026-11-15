@@ -172,6 +172,43 @@ def overlay_polys(calib, scene) -> dict:
     return {"bounds": _proj_poly(Hinv, calib, bounds_pts, 0.0, 1.0).tolist(), "occluders": occs}
 
 
+_OUTLINE_CACHE: dict = {}
+
+
+def _static_outlines(calib, scene, Hinv, k: float) -> list:
+    """[(lista_poligoni_int32, colore_BGR, spessore)] di perimetro e ostacoli, in cache per (calib, scene, k).
+
+    La cache tiene i riferimenti a calib e scene e li confronta per identita': se la calibrazione o la
+    scena vengono sostituite (nuova calibrazione, Carica DXF, ancore) si ricalcola da zero."""
+    c = _OUTLINE_CACHE
+    # la pipeline puo' modificare in place posizione/altezza/direzione della camera: fanno parte della chiave
+    sig = (tuple(map(float, calib.cam_xy)), float(calib.cam_h), calib.cam_dir, float(calib.cam_fov),
+           float(calib.k1), calib.H.tobytes(), len(scene.occluders))
+    if c.get("calib") is calib and c.get("scene") is scene and c.get("k") == k and c.get("sig") == sig:
+        return c["lines"]
+    def one(pts, z):
+        p = _proj_poly(Hinv, calib, pts, z, k, closed=True)
+        return p if len(p) >= 3 else None
+    groups = {((255, 255, 255), 2): [], (OCC_BGR, 2): [], ((233, 180, 86), 1): []}
+    b = one(np.asarray(scene.bounds.exterior.coords)[:, :2], 0.0)
+    if b is not None:
+        groups[((255, 255, 255), 2)].append(b)
+    for o in scene.occluders:
+        if o.poly.geom_type == "Polygon":
+            pts = np.asarray(o.poly.exterior.coords)[:, :2]
+            f = one(pts, 0.0)
+            if f is not None:
+                groups[(OCC_BGR, 2)].append(f)
+            if o.height > 0.05:
+                t = one(pts, o.height)
+                if t is not None:
+                    groups[((233, 180, 86), 1)].append(t)
+    lines = [(v, col, th) for (col, th), v in groups.items() if v]
+    c.clear()
+    c.update(calib=calib, scene=scene, k=k, sig=sig, lines=lines)
+    return lines
+
+
 def draw_overlay(frame, calib, scene, state: dict, max_width: int = 960):
     img = frame.copy()
     fh, fw = img.shape[:2]
@@ -225,23 +262,13 @@ def draw_overlay(frame, calib, scene, state: dict, max_width: int = 960):
             if getattr(calib, "K", None) is not None and abs(getattr(calib, "k1", 0.0)) > 1e-7:
                 uv = distort_norm_pts(uv, calib.K, calib.k1)
             quad = np.clip(np.rint(uv / k), -4096, 4096).astype(np.int32).reshape(-1, 4, 2)
-            for q in quad:
-                cv2.fillConvexPoly(overlay, q, col)
+            cv2.fillPoly(overlay, quad, col)  # una sola chiamata per tutte le celle (molto piu' veloce del ciclo)
         img = cv2.addWeighted(overlay, 0.30, img, 0.70, 0)
 
     # planimetria sopra il video (ritagliata davanti alla camera)
-    def poly(pts, col, th, z=0.0):
-        p = _proj_poly(Hinv, calib, pts, z, k, closed=True)
-        if len(p) >= 3:
-            cv2.polylines(img, [p], True, col, th, cv2.LINE_AA)
-
-    poly(np.asarray(scene.bounds.exterior.coords)[:, :2], (255, 255, 255), 2)
-    for o in scene.occluders:
-        if o.poly.geom_type == "Polygon":
-            pts = np.asarray(o.poly.exterior.coords)[:, :2]
-            poly(pts, OCC_BGR, 2, 0.0)
-            if o.height > 0.05:
-                poly(pts, (233, 180, 86), 1, o.height)
+    # i contorni dipendono solo da calibrazione + scena: si proiettano una volta e si riusano finche' non cambiano
+    for ln, col_l, th_l in _static_outlines(calib, scene, Hinv, k):
+        cv2.polylines(img, ln, True, col_l, th_l, cv2.LINE_AA)
 
     dec = state.get("decision")
     lv = dec["level"] if dec else 0
