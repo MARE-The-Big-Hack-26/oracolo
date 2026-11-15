@@ -27,8 +27,13 @@ class Det:
 class MarkerDetector:
     """Marker ArUco del muletto. Il lato SUPERIORE del marker deve guardare il davanti della sedia."""
 
-    def __init__(self, marker_id: int = 0, dictionary: str = "DICT_4X4_50", height: float = 0.45):
+    def __init__(self, marker_id: int = 0, dictionary: str = "DICT_4X4_50", height: float = 0.45,
+                 worker_ids=range(1, 10), worker_height: float = 1.2):
         d = cv2.aruco.getPredefinedDictionary(getattr(cv2.aruco, dictionary))
+        # marker "lavoratore": ID 1-9, indossato al petto -> persona certa (le ancore usano 10-17, il muletto 0)
+        self.worker_ids = set(worker_ids) - {marker_id}
+        self.worker_height = worker_height
+        self.workers = []  # Det("person") dei marker lavoratore dell'ultimo frame
         self._det = cv2.aruco.ArucoDetector(d, cv2.aruco.DetectorParameters())
         self.marker_id = marker_id
         self.height = height
@@ -39,9 +44,18 @@ class MarkerDetector:
         corners, ids, _ = self._det.detectMarkers(gray)
         out = []
         self.seen = {} if ids is None else {int(i): c[0].astype(float) for c, i in zip(corners, ids.flatten())}
+        self.workers = []
         if ids is None:
             return out
         for c, i in zip(corners, ids.flatten()):
+            if int(i) in self.worker_ids:
+                c = c[0].astype(float)
+                x1, y1 = c.min(axis=0)
+                x2, y2 = c.max(axis=0)
+                cen = c.mean(axis=0)
+                self.workers.append(Det("person", (x1, y1, x2, y2), 1.0, (float(cen[0]), float(cen[1])),
+                                        self.worker_height))
+                continue
             if int(i) != self.marker_id:
                 continue
             c = c[0].astype(float)  # 4x2: alto-sx, alto-dx, basso-dx, basso-sx

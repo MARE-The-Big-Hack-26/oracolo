@@ -187,6 +187,11 @@ class LivePipeline:
         health = frame_health(frame)
         vd = self.marker.detect(frame)
         raw_persons = self.persons.detect(frame)
+        workers = list(getattr(self.marker, "workers", []))
+        if workers:  # il marker lavoratore è una persona certa: sostituisce il riquadro HOG/YOLO che lo contiene
+            def _has_tag(d):
+                return any(d.box[0] <= w.foot[0] <= d.box[2] and d.box[1] <= w.foot[1] <= d.box[3] for w in workers)
+            raw_persons = [d for d in raw_persons if not _has_tag(d)] + workers
         if self.align is not None:
             self.align.observe(t, self.marker.seen, (frame.shape[1], frame.shape[0]))
         if cal is None:
@@ -221,7 +226,7 @@ class LivePipeline:
         # persone
         meas, box_of, drivers, out_of_bounds = [], {}, [], []
         for d in raw_persons:
-            xy = cal.to_world(d.foot[0] * k, d.foot[1] * k, 0.0)
+            xy = cal.to_world(d.foot[0] * k, d.foot[1] * k, d.height)
             if not all(map(math.isfinite, xy)):
                 continue
             if not bounds_buf.contains(Point(xy)):
