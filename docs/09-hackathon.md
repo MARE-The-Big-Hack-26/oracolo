@@ -51,7 +51,7 @@ Contesto: The Big Hack 2026, **Challenge 03 FieldVision (Mare Group)**, Città d
 | Domanda | Risposta breve |
 |---|---|
 | È già stato fatto? | Il concetto di zone di velocità e il rilevamento pedoni sì. Qui il limite deriva dalla **zona cieca** e dalla fisica dello spazio di arresto, con memoria "ignoto ≠ libero" e comando fail-safe; e misuriamo il compromesso sicurezza–produttività. |
-| È un sistema di sicurezza certificato? | No. È un prototipo di ricerca. Per uno stop reale serve una catena certificata (relè/PLC di sicurezza); Oracolo è un livello che avvisa e limita. |
+| È un sistema di sicurezza certificato? | No. È un prototipo di ricerca. Per uno stop reale serve una catena certificata (relè/PLC di sicurezza); ClearCorner è un livello che avvisa e limita. |
 | Perché non usare un modello AI per tutto? | Il motore è deterministico e verificabile; l'AI serve solo per vedere le persone ed è sostituibile. Così il comportamento si può spiegare e testare. |
 | Come funziona se la rete cade? | Il comando ha una scadenza: se non ne arriva uno nuovo la macchina si ferma da sola (watchdog). Lo mostriamo nel video. |
 | Quanto costa per un'azienda? | Ordine di grandezza di centinaia–migliaia di € a veicolo per un retrofit; il nostro prototipo usa camere già presenti. Cifre indicative e da verificare (vedi `02`). |
@@ -73,12 +73,12 @@ Contesto: The Big Hack 2026, **Challenge 03 FieldVision (Mare Group)**, Città d
 |---|---|---|
 | 0:00–0:20 | Magazzino/modellino, carrello che arriva a un incrocio cieco | «In un magazzino, il pericolo più grande non è la persona che vedi. È quella che non puoi vedere.» |
 | 0:20–0:40 | Zoom sull'angolo: scaffale che copre | «Un sistema che reagisce solo a ciò che vede arriva sempre tardi.» |
-| 0:40–1:05 | HUD: zone verdi e arancio | «Oracolo sa cosa vede e cosa no. Le zone non osservate sono trattate come potenzialmente occupate: ignoto non significa libero.» |
+| 0:40–1:05 | HUD: zone verdi e arancio | «ClearCorner sa cosa vede e cosa no. Le zone non osservate sono trattate come potenzialmente occupate: ignoto non significa libero.» |
 | 1:05–1:35 | Atto 1: livelli 0→1→2, limite che scende | «Dalla fisica dello spazio di arresto calcola la velocità massima. Quattro livelli: normale, attenzione, rallenta, ferma.» |
-| 1:35–2:00 | Atto 2: pedone esce, macchina si ferma; stesso caso senza Oracolo: collisione | «Con Oracolo la macchina era già lenta. Senza, la collisione.» |
+| 1:35–2:00 | Atto 2: pedone esce, macchina si ferma; stesso caso senza ClearCorner: collisione | «Con ClearCorner la macchina era già lenta. Senza, la collisione.» |
 | 2:00–2:20 | Atto 3: link tagliato / camera coperta → FERMA | «Il comando ha una scadenza: se smette di arrivare, la macchina si ferma da sola.» |
 | 2:20–2:40 | Tabella e grafico | «In simulazione: zero collisioni dove la camera vede poco, contro 7 su 30 per chi reagisce solo a ciò che vede; e il prezzo in produttività dipende da dove metti le camere.» |
-| 2:40–2:45 | Titolo e limiti | «Prototipo di ricerca, non certificato. Oracolo: sapere cosa non vedi.» |
+| 2:40–2:45 | Titolo e limiti | «Prototipo di ricerca, non certificato. ClearCorner: sapere cosa non vedi.» |
 
 Sottotitoli in italiano sempre. Riprendere solo i compagni di squadra, con consenso.
 

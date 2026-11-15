@@ -12,8 +12,11 @@ from .certs import maybe_wrap_tls
 
 WEB = Path(__file__).parent / "web"
 MAX_DXF_BYTES = 20 * 1024 * 1024
-_PAGES = {"/": "panel.html", "/panel": "panel.html", "/camera": "camera.html", "/calibrate": "calibrate.html", "/room": "room.html"}
-_JS = ("/room.js", "/room_cam.js", "/calibrate.js", "/anchors.js", "/dxfload.js")
+_PAGES = {
+    "/": "panel.html", "/panel": "panel.html", "/camera": "camera.html",
+    "/calibrate": "calibrate.html", "/room": "room.html", "/cab": "cab.html", "/muletto": "cab.html",
+}
+_JS = ("/room.js", "/room_cam.js", "/calibrate.js", "/cad_drag.js", "/anchors.js", "/dxfload.js", "/cab.js", "/panel.js")
 
 
 def make_handler(app, camera_url: str = "", ssl_ctx: ssl.SSLContext | None = None):
@@ -74,6 +77,7 @@ def make_handler(app, camera_url: str = "", ssl_ctx: ssl.SSLContext | None = Non
             if path == "/scene":
                 info = app.pipe.scene_info()
                 info["camera_url"] = app.camera_url or camera_url
+                info["cab_url"] = app.cab_url(camera_url)
                 info["no_scene"] = not app.scene_loaded
                 info["cad"] = app.cad_report
                 return self._send(200, json.dumps(info).encode(), "application/json")
@@ -84,6 +88,8 @@ def make_handler(app, camera_url: str = "", ssl_ctx: ssl.SSLContext | None = Non
                 return self._send(200, json.dumps(out).encode(), "application/json")
             if path == "/qr.png":
                 return self._send(200, app.qr_png(camera_url), "image/png")
+            if path == "/cab_qr.png":
+                return self._send(200, app.cab_qr_png(camera_url), "image/png")
             if path == "/snapshot.jpg":
                 return self._send(200, app.snapshot, "image/jpeg") if app.snapshot else self._send(404, b"nessun frame ricevuto")
             if path == "/video.mjpg":

@@ -23,5 +23,6 @@
 | 14/11 | Allineamento CAD-video con 4 ancore ArUco (id 10-13) a terra; calibrazione a 4 clic resta come alternativa | Misura di coincidenza robusta e rilevamento di camera spostata; soglie (10/25 cm) sono ipotesi da tarare | team (impl. Claude) |
 | 14/11 | La posizione della camera NON si stima dalle ancore: si indica (x, y, h) | Stima da un solo piano misurata inaffidabile (~0,5 m di errore con 0,5 px di rumore) | team (impl. Claude) |
 | 14/11 | Ancore: nero 20 cm consigliato (A3), 15 cm minimo (A4) | Simulazione a 960x540 (indicativa): da confermare con iPhone | team (impl. Claude) |
+| 15/11 | Nome del progetto: **ClearCorner** (al posto di *Oracolo* per UI, brand e docs; pacchetto Python `oracolo/` invariato per evitare conflitti) | Più immediato e auto-esplicativo per giuria e utenti industriali | team |
 
 Aggiungere una riga a ogni scelta importante (data, motivo, chi).

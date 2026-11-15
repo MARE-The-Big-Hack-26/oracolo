@@ -4,7 +4,7 @@
 Si simula il **livello di comando**, non la meccanica. Il formato è lo stesso che userebbe un impianto reale.
 
 ```
-Camera → Oracolo (decisione) → MachineCommand → [canale] → Macchina (controller) → freno/velocità
+Camera → ClearCorner (decisione) → MachineCommand → [canale] → Macchina (controller) → freno/velocità
 ```
 
 `MachineCommand = { seq, t_sent, speed_limit [m/s], level 0..3, cause, ttl [s] }`
@@ -46,7 +46,7 @@ Con decelerazione *a* e latenza totale *T* (sensing + decisione + comunicazione 
 1. **Modalità ombra** (mesi 0–2): il sistema calcola e registra ma non agisce; si misura quante volte *avrebbe* rallentato/fermato e se aveva ragione. Costo basso, rischio zero.
 2. **Solo avvisi** (mesi 2–4): luci/suono per l'operatore.
 3. **Limitatore morbido**: riduzione di velocità tramite il controller del veicolo (non è una funzione di sicurezza).
-4. **Integrazione con la catena di sicurezza**: solo con sensori e controllori certificati; Oracolo informa, non sostituisce.
+4. **Integrazione con la catena di sicurezza**: solo con sensori e controllori certificati; ClearCorner informa, non sostituisce.
 
 **Cosa non si può dire:** che una camera con AI possa fermare un carrello come funzione di sicurezza certificata. Le norme non lo prevedono e i fornitori seri lo dicono.
 

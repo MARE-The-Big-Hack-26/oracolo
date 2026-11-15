@@ -12,6 +12,7 @@ Convenzioni:
 from __future__ import annotations
 
 import base64
+from concurrent.futures import ThreadPoolExecutor
 import math
 
 import cv2
@@ -34,11 +35,13 @@ NOT_VERIFIED = {"status": "NON_VERIFICATO", "confidence": 1.0,
                 "message": "Nessuna ancora a terra configurata: non verifico che il CAD coincida con il video."}
 
 
-def frame_health(frame) -> float:
+def frame_health(frame, gray=None) -> float:
     """1 = immagine buona; scende con luce estrema o immagine sfocata/coperta."""
-    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY) if frame.ndim == 3 else frame
-    mean = float(gray.mean())
-    lap = float(cv2.Laplacian(gray, cv2.CV_64F).var())
+    if gray is None:
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY) if frame.ndim == 3 else frame
+    sub = gray[::2, ::2] if gray.shape[0] >= 120 and gray.shape[1] >= 120 else gray
+    mean = float(sub.mean())
+    lap = float(cv2.Laplacian(sub, cv2.CV_64F).var())
     h = 0.4 if (mean < 25 or mean > 245) else 1.0
     return min(h, 0.5) if lap < 2.0 else h
 
@@ -62,6 +65,7 @@ class LivePipeline:
         self._flag = False
         self._custom_cone = False
         self.cam_spec = {"xy": [4.5, 1.1], "h": 1.8, "dir": self._default_dir((4.5, 1.1)), "fov": 75.0}
+        self._det_pool = ThreadPoolExecutor(max_workers=2)
         self.anchors, self.align = None, None
         self.set_anchors(anchors)
         self.set_calibration(calib)
@@ -184,9 +188,11 @@ class LivePipeline:
     def process(self, frame, t: float, frame_age: float = 0.0) -> dict:
         cal = self.calib
         state = {"t": round(t, 3), "calibrated": cal is not None, "version": self.version}
-        health = frame_health(frame)
-        vd = self.marker.detect(frame)
-        raw_persons = self.persons.detect(frame)
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY) if frame.ndim == 3 else frame
+        health = frame_health(frame, gray=gray)
+        fut_p = self._det_pool.submit(self.persons.detect, frame)
+        vd = self.marker.detect(frame, gray=gray) if isinstance(self.marker, MarkerDetector) else self.marker.detect(frame)
+        raw_persons = fut_p.result()
         if self.align is not None:
             self.align.observe(t, self.marker.seen, (frame.shape[1], frame.shape[0]))
         if cal is None:
@@ -257,8 +263,9 @@ class LivePipeline:
         fog_grid, fog_dict = self.fog_payload(t)
         persons = []
         for tr in tracks:
-            d = box_of.get(tr.xy)
+            d = box_of.get(tr.raw_xy) or box_of.get(tr.xy)
             persons.append({"id": tr.id, "xy": [round(tr.xy[0], 2), round(tr.xy[1], 2)], "speed": round(tr.speed, 2),
+                            "vx": round(tr.vx, 2), "vy": round(tr.vy, 2),
                             "conf": round(float(tr.conf), 2),
                             "box": [round(v, 1) for v in d.box] if d is not None else None,
                             "foot": [round(float(d.foot[0]), 1), round(float(d.foot[1]), 1)] if d is not None else None})

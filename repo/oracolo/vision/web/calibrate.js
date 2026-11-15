@@ -1,6 +1,6 @@
 let scene = null, im = new Image(), imgPts = [], worldPts = [], pending = null, cam = [4.5, 1.1], camH = 1.8;
 let camMode = false, resetConfirm = false, resetT = null, overlay = null, calibW = 0, calibSize = [960, 540];
-let dragImg = -1, dragMap = null, toastT = null, selPt = -1, hoverImg = null, snapMap = null, ptErrs = [];
+let dragImg = -1, dragMap = null, toastT = null, selPt = -1, hoverImg = null, hoverVert = null, snapMap = null, ptErrs = [];
 let inflight = false, queuedLive = false, lastLiveAt = 0;
 const CACHE_KEY = 'oracolo_calib_cache', rnd = (v) => Math.round(v * 100) / 100, $ = (id) => document.getElementById(id);
 const ci = $('img'), cm = $('map'), msgEl = $('msg'), toastEl = $('toast'), saveBtn = $('save'), setCamBtn = $('setcam');
@@ -85,6 +85,7 @@ function drawImg() {
       strokePoly(c, o.floor, 'rgba(230,159,0,0.95)', 2.2, sc);
       if (o.top && o.top.length >= 3) strokePoly(c, o.top, 'rgba(86,180,233,0.88)', 1.6, sc);
     });
+    window.OracoloCadDrag?.drawVertices(c, overlay, sc, hoverVert, dragImg >= 0);
   }
   imgPts.forEach((p, i) => {
     const active = i === dragImg || i === selPt;
@@ -206,14 +207,24 @@ const hitIdx = (pts, px, py, rad) => pts.findIndex((p) => Math.hypot(p[0] - px, 
 ci.addEventListener('pointerdown', (e) => {
   if (!im.naturalWidth) return; const [px, py, sc] = pos(e, ci), hi = hitIdx(imgPts, px, py, 16 * sc);
   if (hi >= 0 && !camMode) { dragImg = hi; selPt = hi; ci.setPointerCapture(e.pointerId); upd(); return; }
-  if (camMode || pending) return; pending = [px, py]; upd();
+  if (camMode || pending) return;
+  const ovSc = calibW ? ci.width / calibW : 1;
+  const vh = window.OracoloCadDrag?.hitVertex(overlay, px, py, 14 * sc, ovSc, worldPts, e.altKey);
+  if (vh) {
+    if (vh.existingIdx >= 0) { dragImg = vh.existingIdx; imgPts[dragImg] = [px, py]; }
+    else { imgPts.push([px, py]); worldPts.push([vh.vertex.x, vh.vertex.y, vh.vertex.z]); dragImg = imgPts.length - 1; }
+    selPt = dragImg; hoverVert = null; ci.setPointerCapture(e.pointerId); upd(); return;
+  }
+  pending = [px, py]; upd();
 });
 ci.addEventListener('pointermove', (e) => {
   if (!im.naturalWidth) return; const [px, py, sc] = pos(e, ci); hoverImg = [px, py];
   if (dragImg >= 0) { imgPts[dragImg] = [px, py]; drawImg(); triggerLiveCalib(); return; }
-  ci.style.cursor = (!camMode && hitIdx(imgPts, px, py, 16 * sc) >= 0) ? 'grab' : 'crosshair'; drawImg();
+  const hi = hitIdx(imgPts, px, py, 16 * sc), ovSc = calibW ? ci.width / calibW : 1;
+  hoverVert = (!camMode && !pending && hi < 0) ? window.OracoloCadDrag?.hitVertex(overlay, px, py, 14 * sc, ovSc, worldPts, e.altKey) : null;
+  ci.style.cursor = (!camMode && (hi >= 0 || hoverVert)) ? 'grab' : 'crosshair'; drawImg();
 });
-ci.addEventListener('pointerleave', () => { hoverImg = null; drawImg(); });
+ci.addEventListener('pointerleave', () => { hoverImg = null; hoverVert = null; drawImg(); });
 ci.addEventListener('pointerup', () => { if (dragImg < 0) return; dragImg = -1; upd(); saveCalib(saveBtn); });
 cm.addEventListener('pointerdown', (e) => {
   if (!scene) return; const v = mview(), [px, py, sc] = pos(e, cm), sn = findSnap(v, px, py, sc, e.altKey);

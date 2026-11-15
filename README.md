@@ -1,7 +1,7 @@
-# bighack mare — Oracolo
+# bighack mare — ClearCorner
 
 Cartella di progetto per **The Big Hack 2026 · Challenge 03 FieldVision (Mare Group)**.
-Progetto: **Oracolo**, rilevazione dei punti ciechi per macchine industriali (camera → 4 livelli di pericolo → comando che rallenta o ferma la macchina).
+Progetto: **ClearCorner**, rilevazione dei punti ciechi per macchine industriali (camera → 4 livelli di pericolo → comando che rallenta o ferma la macchina).
 
 **Scadenza: domenica 15/11/2026 ore 12:00 CET. Consegna entro le 11:15.**
 

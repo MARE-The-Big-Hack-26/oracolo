@@ -6,7 +6,7 @@ Obiettivo: in **70 secondi** il giurato capisce che (1) la macchina sa dove è c
 | Atto | Durata | Cosa succede | Cosa si vede |
 |---|---|---|---|
 | 1. L'incrocio cieco | 25 s | La macchina accelera lungo la corsia; nessun pedone in vista | Livello 0 → 1 → 2 mentre si avvicina all'incrocio; zona arancio "non osservata" accanto alla corsia; limite in m/s che scende |
-| 2. Il pedone che esce | 25 s | Un compagno (con il tappo) esce dalla corsia trasversale proprio mentre la macchina arriva | Il pedone appare → "osservato"; la macchina era già lenta → si ferma con margine; poi riparte. Confronto affiancato "senza Oracolo": collisione |
+| 2. Il pedone che esce | 25 s | Un compagno (con il tappo) esce dalla corsia trasversale proprio mentre la macchina arriva | Il pedone appare → "osservato"; la macchina era già lenta → si ferma con margine; poi riparte. Confronto affiancato "senza ClearCorner": collisione |
 | 3. Quando qualcosa si rompe | 20 s | Si taglia il link / si copre la camera | Il banner «AFFIDABILITÀ PERSA» e FERMA; il watchdog dichiara «nessun comando valido» |
 
 Dopo: 10 s di numeri (tabella e grafico sicurezza‑produttività).

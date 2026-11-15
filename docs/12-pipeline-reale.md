@@ -8,7 +8,7 @@ iPhone (Safari, /camera) --JPEG ~10 fps, HTTPS--> Mac: LivePipeline
    marker ArUco sulla sedia  -> posa del muletto (posizione, direzione, velocità)
    rilevatore di persone     -> piedi -> metri sulla planimetria -> tracking
    camera fissa calibrata    -> cosa vede / cosa è zona cieca (geometria + inquadratura)
-   Oracolo (motore)          -> livello 0..3, limite di velocità, causa
+   ClearCorner (motore)          -> livello 0..3, limite di velocità, causa
 Mac: pannello (/) = video con CAD sovrapposto + mappa dall'alto + indicatori
 ```
 Il muletto non ha display: il segnale è solo il comando (limite + livello). La sedia la spinge una persona che "fa da attuatore"; il pannello mostra anche se la sedia supera il limite (violazioni).

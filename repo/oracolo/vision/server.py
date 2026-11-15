@@ -60,7 +60,7 @@ class LiveApp:
                 self.anchors_error = f"{self.anchors_path}: {e}"
         with self.lock_pipe:
             self._sync_state_from_scene()
-        self._qr_cache: tuple[str | None, bytes] = (None, b"")
+        self._qr_cache: dict[str, bytes] = {}
 
     # ---- ingresso frame ------------------------------------------------------------------
     def push_jpeg(self, data: bytes) -> None:
@@ -136,15 +136,26 @@ class LiveApp:
                               "cause_it": CAUSE_IT["affidabilita_persa"]}
         return json.dumps(st).encode()
 
-    def qr_png(self, fallback: str = "") -> bytes:
-        url = self.camera_url or fallback
-        if self._qr_cache[0] != url:
-            qr = cv2.QRCodeEncoder.create().encode(url or "/camera")
+    def cab_url(self, fallback: str = "") -> str:
+        base = self.camera_url or fallback
+        if base.endswith("/camera"):
+            return base[:-len("/camera")] + "/cab"
+        return (base.rstrip("/") + "/cab") if base else "/cab"
+
+    def _encode_qr(self, url: str) -> bytes:
+        if url not in self._qr_cache:
+            qr = cv2.QRCodeEncoder.create().encode(url)
             padded = cv2.copyMakeBorder(qr, 2, 2, 2, 2, cv2.BORDER_CONSTANT, value=255)
             img = cv2.resize(padded, (0, 0), fx=8, fy=8, interpolation=cv2.INTER_NEAREST)
             ok, buf = cv2.imencode(".png", img)
-            self._qr_cache = (url, buf.tobytes() if ok else b"")
-        return self._qr_cache[1]
+            self._qr_cache[url] = buf.tobytes() if ok else b""
+        return self._qr_cache[url]
+
+    def qr_png(self, fallback: str = "") -> bytes:
+        return self._encode_qr(self.camera_url or fallback or "/camera")
+
+    def cab_qr_png(self, fallback: str = "") -> bytes:
+        return self._encode_qr(self.cab_url(fallback))
 
     def _sync_state_from_scene(self) -> None:
         _, fog_dict = self.pipe.fog_payload()

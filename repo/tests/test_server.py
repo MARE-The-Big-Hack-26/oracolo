@@ -42,11 +42,16 @@ def live(tmp_path):
 
 def test_flusso_completo(live):
     app, base = live
-    for page in ("/", "/camera", "/calibrate", "/room"):
+    for page in ("/", "/camera", "/calibrate", "/room", "/cab", "/muletto"):
         assert b"<html" in _req(base + page).read()
     assert b"OrbitControls" in _req(base + "/room.js").read()
+    assert b"SENSORE MULETTO" in _req(base + "/cab").read()
+    assert b"FAIL-SAFE" in _req(base + "/cab.js").read()
     assert _req(base + "/qr.png").read().startswith(b"\x89PNG")
-    assert json.loads(_req(base + "/scene").read())["calibrated"] is False
+    assert _req(base + "/cab_qr.png").read().startswith(b"\x89PNG")
+    scene_json = json.loads(_req(base + "/scene").read())
+    assert scene_json["calibrated"] is False
+    assert scene_json["cab_url"].endswith("/cab")
     # frame -> snapshot disponibile
     frame = synth.render_frame((2.5, 1.2, 1.5708))
     assert _req(base + "/frame", _jpeg(frame)).status == 204

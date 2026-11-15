@@ -128,12 +128,15 @@ if a.source != "stream":
 print(f"\nPannello (Mac):  http://localhost:{a.port}/   (nessun avviso certificato)")
 print(f"Planimetria:     http://localhost:{a.port}/room")
 print(f"Calibrazione:    http://localhost:{a.port}/calibrate")
+lan_cab_url = f"{'http' if a.http else 'https'}://{ip}:{a.port}/cab"
 if tunnel_url:
     print(f"Camera (HTTPS sicuro):   {tunnel_url}/camera")
+    print(f"Sensore Muletto (HTTPS): {tunnel_url}/cab")
     print(f"Pannello remoto (HTTPS): {tunnel_url}/")
-    print(f"Fallback LAN locale:     {lan_cam_url}")
+    print(f"Fallback LAN locale:     {lan_cam_url}  |  {lan_cab_url}")
 else:
     print(f"Camera (LAN):            {lan_cam_url}")
+    print(f"Sensore Muletto (LAN):   {lan_cab_url}")
 print("(Ctrl+C per fermare)")
 try:
     while True:
