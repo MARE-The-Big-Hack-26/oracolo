@@ -8,6 +8,7 @@ consigliato su Apple Silicon), ``rfdetr`` (RF-DETR, Apache 2.0) oppure ``hog``
 from __future__ import annotations
 
 from dataclasses import dataclass
+from pathlib import Path
 
 import cv2
 import numpy as np
@@ -24,11 +25,97 @@ class Det:
     truncated: bool = False  # persona tagliata dal bordo inferiore: i piedi non si vedono
 
 
+TAG_DIR = Path(__file__).resolve().parent / "tags"
+
+
+class TagMatcher:
+    """Riconosce un cartello 'a disegno' NON ArUco (il foglio del lavoratore stampato da noi).
+
+    Cerca quadrati scuri, li raddrizza e li confronta con un modello (correlazione normalizzata) nelle
+    4 rotazioni: la persona può girarsi. Non dà identità crittografica come ArUco: soglia ``thr`` da tarare in aula.
+    """
+
+    def __init__(self, template_path=None, thr: float = 0.55, size: int = 96, height: float = 1.2):
+        path = Path(template_path) if template_path else TAG_DIR / "lavoratore.png"
+        t = cv2.imread(str(path), cv2.IMREAD_GRAYSCALE)
+        if t is None:
+            raise FileNotFoundError(f"modello del cartello non trovato: {path}")
+        t = cv2.resize(t, (size, size), interpolation=cv2.INTER_AREA).astype(np.float32)
+        self.size, self.thr, self.height = size, thr, height
+        self.rots = [np.rot90(t, k) for k in range(4)]
+        self.rots = [cv2.GaussianBlur(np.ascontiguousarray(r), (0, 0), 2) for r in self.rots]  # tollera piccoli errori di angolo
+        self.last_score = 0.0
+
+    def _score(self, patch) -> float:
+        """patch = quadrato raddrizzato con ~8% di margine: cerca il modello con piccoli spostamenti e scale."""
+        p = cv2.GaussianBlur(patch.astype(np.float32), (0, 0), 2)
+        best = -1.0
+        for r in self.rots:
+            for sc in (0.9, 1.0, 1.1):
+                n = int(round(self.size * sc))
+                t = cv2.resize(r, (n, n), interpolation=cv2.INTER_AREA)
+                if n > p.shape[0]:
+                    continue
+                best = max(best, float(cv2.matchTemplate(p, t, cv2.TM_CCOEFF_NORMED).max()))
+        return best
+
+    def detect(self, frame, skip_pts=()) -> list:
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY) if frame.ndim == 3 else frame
+        H, W = gray.shape
+        s = min(1.0, 1280 / W)
+        g = cv2.resize(gray, None, fx=s, fy=s, interpolation=cv2.INTER_AREA) if s < 1 else gray
+        g = cv2.GaussianBlur(g, (5, 5), 0)
+        out, best = [], 0.0
+        area_img = g.shape[0] * g.shape[1]
+        seen_cen = []
+        for T in (55, 80, 105):  # soglie diverse: il nero del cartello dipende dalla luce
+            dark = cv2.morphologyEx(((g < T) * 255).astype(np.uint8), cv2.MORPH_CLOSE, np.ones((5, 5), np.uint8))  # chiude le pieghe
+            cnts, _ = cv2.findContours(dark, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+            for c in cnts:
+                a = cv2.contourArea(c)
+                if a < 0.0015 * area_img or a > 0.5 * area_img:
+                    continue
+                hull = cv2.convexHull(c)
+                peri = cv2.arcLength(hull, True)
+                quad = cv2.approxPolyDP(hull, 0.04 * peri, True)
+                if len(quad) != 4 or cv2.contourArea(quad) < 0.85 * a:
+                    continue
+                q = quad.reshape(4, 2).astype(np.float32)
+                cen = q.mean(axis=0) / s
+                if any(np.hypot(cen[0] - c0[0], cen[1] - c0[1]) < 20 for c0 in seen_cen):
+                    continue
+                if any(cv2.pointPolygonTest(np.asarray(p, np.float32), (float(cen[0]), float(cen[1])), False) >= 0
+                       for p in skip_pts):
+                    continue  # è un marker ArUco (ancora, muletto): non è il cartello
+                idx = np.argsort(q[:, 1]); top, bot = q[idx[:2]], q[idx[2:]]  # ordine: alto-sx, alto-dx, basso-dx, basso-sx
+                q = np.float32([top[np.argmin(top[:, 0])], top[np.argmax(top[:, 0])],
+                                bot[np.argmax(bot[:, 0])], bot[np.argmin(bot[:, 0])]])
+                m = int(self.size * 0.08)
+                S = self.size + 2 * m
+                M = cv2.getPerspectiveTransform(q, np.float32([[m, m], [m + self.size, m], [m + self.size, m + self.size], [m, m + self.size]]))
+                sc = self._score(cv2.warpPerspective(g, M, (S, S), borderMode=cv2.BORDER_REPLICATE))
+                best = max(best, sc)
+                if sc >= self.thr:
+                    seen_cen.append(cen)
+                    x1, y1 = q.min(axis=0) / s
+                    x2, y2 = q.max(axis=0) / s
+                    out.append((sc, Det("person", (float(x1), float(y1), float(x2), float(y2)), min(1.0, sc),
+                                        (float(cen[0]), float(cen[1])), self.height)))
+        self.last_score = best
+        return [d for _, d in sorted(out, key=lambda t: -t[0])]
+
+
 class MarkerDetector:
     """Marker ArUco del muletto. Il lato SUPERIORE del marker deve guardare il davanti della sedia."""
 
-    def __init__(self, marker_id: int = 0, dictionary: str = "DICT_4X4_50", height: float = 0.45):
+    def __init__(self, marker_id: int = 0, dictionary: str = "DICT_4X4_50", height: float = 0.45,
+                 worker_ids=range(1, 10), worker_height: float = 1.2, tag: "TagMatcher | None" = None):
         d = cv2.aruco.getPredefinedDictionary(getattr(cv2.aruco, dictionary))
+        # marker "lavoratore": ID 1-9, indossato al petto -> persona certa (le ancore usano 10-17, il muletto 0)
+        self.worker_ids = set(worker_ids) - {marker_id}
+        self.worker_height = worker_height
+        self.tag = tag  # cartello a disegno (non ArUco) del lavoratore
+        self.workers = []  # Det("person") dei marker lavoratore dell'ultimo frame
         params = cv2.aruco.DetectorParameters()
         params.cornerRefinementMethod = cv2.aruco.CORNER_REFINE_SUBPIX
         params.cornerRefinementWinSize = 5
@@ -45,9 +132,21 @@ class MarkerDetector:
         corners, ids, _ = self._det.detectMarkers(gray)
         out = []
         self.seen = {} if ids is None else {int(i): c[0].astype(float) for c, i in zip(corners, ids.flatten())}
+        self.workers = []
+        if self.tag is not None:
+            skip = [c[0] for c in corners]
+            self.workers.extend(self.tag.detect(frame, skip))
         if ids is None:
             return out
         for c, i in zip(corners, ids.flatten()):
+            if int(i) in self.worker_ids:
+                c = c[0].astype(float)
+                x1, y1 = c.min(axis=0)
+                x2, y2 = c.max(axis=0)
+                cen = c.mean(axis=0)
+                self.workers.append(Det("person", (x1, y1, x2, y2), 1.0, (float(cen[0]), float(cen[1])),
+                                        self.worker_height))
+                continue
             if int(i) != self.marker_id:
                 continue
             c = c[0].astype(float)  # 4x2: alto-sx, alto-dx, basso-dx, basso-sx

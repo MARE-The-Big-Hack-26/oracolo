@@ -24,7 +24,7 @@ from oracolo.geometry import Scene
 from oracolo.policy import PedParams, VehicleParams
 from oracolo.vision.calib import Calibration
 from oracolo.vision.certs import ensure_cert, lan_ip, start_tunnel
-from oracolo.vision.detectors import MarkerDetector, build_person_detector
+from oracolo.vision.detectors import MarkerDetector, TagMatcher, build_person_detector
 from oracolo.vision.pipeline import LivePipeline
 from oracolo.vision.server import LiveApp, serve
 
@@ -44,6 +44,8 @@ ap.add_argument("--http", action="store_true", help="senza HTTPS (solo prove sul
 ap.add_argument("--no-tunnel", action="store_true", help="usa solo LAN locale senza tunnel HTTPS pubblico")
 ap.add_argument("--certs", default="certs")
 ap.add_argument("--marker-id", type=int, default=0)
+ap.add_argument("--worker-h", type=float, default=1.2, help="quota (m) del marker lavoratore (ID 1-9) indossato al petto")
+ap.add_argument("--no-worker-tag", action="store_true", help="non cercare il foglio-lavoratore a disegno (solo ArUco ID 1-9)")
 ap.add_argument("--marker-h", type=float, default=0.45, help="quota del marker sulla sedia (m)")
 ap.add_argument("--default-height", type=float, default=3.0, help="altezza (m) degli ostacoli senza suffisso _H")
 ap.add_argument("--lines-as-walls", action="store_true", help="DXF di scansione LiDAR: LINE/polilinee aperte = muri")
@@ -79,7 +81,8 @@ det_desc = f"{type(person_det).__name__}" + (f" ({person_det.weights}, {person_d
 print(f"Rilevatore persone: {det_desc}")
 pipe = LivePipeline(scene, calib, params=PROFILES[a.profile], ped=PedParams(v_walk=1.3, radius=0.3),
                     person_detector=person_det,
-                    marker=MarkerDetector(a.marker_id, height=a.marker_h))
+                    marker=MarkerDetector(a.marker_id, height=a.marker_h, worker_height=a.worker_h,
+                                          tag=None if a.no_worker_tag else TagMatcher(height=a.worker_h)))
 ip = lan_ip()
 lan_cam_url = f"{'http' if a.http else 'https'}://{ip}:{a.port}/camera"
 app = LiveApp(pipe, a.calib, dxf_path=a.room_file, scene_loaded=bool(a.dxf), anchors_path=a.anchors)
